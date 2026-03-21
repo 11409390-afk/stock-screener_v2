@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Crypto Selector - Analyze cryptocurrencies with 13 proven trading strategies using BingX API">
+    <title>Crypto Selector | Trading Strategy Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">📊</span>
+                <h1>Crypto Selector</h1>
+            </div>
+            <div class="header-actions">
+                <button id="refreshBtn" class="btn btn-icon" title="Refresh Data">
+                    <span>🔄</span>
+                </button>
+                <button id="themeToggle" class="btn btn-icon" title="Toggle Theme">
+                    <span>🌙</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Control Panel -->
+            <section class="control-panel glass-card">
+                <div class="panel-header">
+                    <h2>Market Selection</h2>
+                    <span class="status-badge" id="connectionStatus">Disconnected</span>
+                </div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label for="marketSource">Market Source</label>
+                        <select id="marketSource">
+                            <option value="CRYPTO">Crypto (BingX)</option>
+                            <option value="STOCK">Taiwan Stock</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group" id="stockTypeGroup" style="display: none;">
+                        <label for="stockType">Market Board</label>
+                        <select id="stockType">
+                            <option value="MAINBOARD">上市/上櫃 (TWSE & TPEx OTC)</option>
+                            <option value="EMERGING">興櫃 (Emerging)</option>
+                            <option value="WARRANTS">權證 (Warrants)</option>
+                            <option value="BONDS">可轉債 (Bonds)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group symbol-search-group">
+                        <label for="symbolSearch">Trading Pair</label>
+                        <div class="search-wrapper">
+                            <input type="text" id="symbolSearch" placeholder="Search or select pair (e.g., ETH, BTC...)"
+                                autocomplete="off">
+                            <span class="search-icon">🔍</span>
+                            <div class="search-results" id="searchResults"></div>
+                        </div>
+                        <!-- Hidden select for storing selected value -->
+                        <select id="symbolSelect" style="display: none;"></select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="timeframe">Timeframe</label>
+                        <select id="timeframe">
+                            <option value="1m">1 Minute</option>
+                            <option value="5m">5 Minutes</option>
+                            <option value="15m">15 Minutes</option>
+                            <option value="30m">30 Minutes</option>
+                            <option value="1h" selected>1 Hour</option>
+                            <option value="4h">4 Hours</option>
+                            <option value="1d">1 Day</option>
+                            <option value="1w">1 Week</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <button id="loadMarketsBtn" class="btn btn-primary">
+                            <span>📡</span> Load Markets
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Strategy Selection -->
+            <section class="strategies-panel glass-card">
+                <div class="panel-header">
+                    <h2>Trading Strategies</h2>
+                    <div class="strategy-actions">
+                        <button id="selectAllBtn" class="btn btn-sm">Select All</button>
+                        <button id="clearAllBtn" class="btn btn-sm">Clear All</button>
+                    </div>
+                </div>
+
+                <div class="strategies-grid" id="strategiesGrid">
+                    <!-- Strategy cards will be populated by JS -->
+                </div>
+            </section>
+
+            <!-- Analysis Controls -->
+            <section class="analysis-controls glass-card">
+                <button id="analyzeBtn" class="btn btn-analyze" disabled>
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-text">Analyze Selected</span>
+                </button>
+                <button id="viewChartBtn" class="btn btn-chart" disabled>
+                    <span class="btn-icon">📈</span>
+                    <span class="btn-text">View Chart</span>
+                </button>
+                <button id="screenAllBtn" class="btn btn-screen" disabled>
+                    <span class="btn-icon">📋</span>
+                    <span class="btn-text">Screen Top 50</span>
+                </button>
+                <button id="exportBtn" class="btn btn-export" disabled>
+                    <span class="btn-icon">💾</span>
+                    <span class="btn-text">Export Results</span>
+                </button>
+                <button id="backtestBtn" class="btn btn-backtest" disabled>
+                    <span class="btn-icon">📈</span>
+                    <span class="btn-text">Backtest</span>
+                </button>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection">
+                <!-- Market Overview -->
+                <div class="market-overview glass-card" id="marketOverview">
+                    <div class="panel-header">
+                        <h2>Market Overview</h2>
+                        <span class="symbol-name" id="currentSymbol">--</span>
+                    </div>
+                    <div class="market-stats">
+                        <div class="stat-card">
+                            <span class="stat-label">Price</span>
+                            <span class="stat-value" id="currentPrice">--</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">24h Change</span>
+                            <span class="stat-value" id="priceChange">--</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">24h Volume</span>
+                            <span class="stat-value" id="volume24h">--</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">24h High</span>
+                            <span class="stat-value" id="high24h">--</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">24h Low</span>
+                            <span class="stat-value" id="low24h">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Signals -->
+                <div class="signals-panel glass-card" id="signalsPanel">
+                    <div class="panel-header">
+                        <h2>Strategy Signals</h2>
+                        <div class="signal-summary" id="signalSummary">
+                            <span class="buy-count">0 Buy</span>
+                            <span class="sell-count">0 Sell</span>
+                            <span class="neutral-count">0 Neutral</span>
+                        </div>
+                    </div>
+                    <div class="signals-grid" id="signalsGrid">
+                        <!-- Signal cards populated by JS -->
+                        <div class="empty-state">
+                            <span>📊</span>
+                            <p>Select strategies and click Analyze to see signals</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overall Score -->
+                <div class="score-panel glass-card" id="scorePanel">
+                    <div class="panel-header">
+                        <h2>Overall Score</h2>
+                    </div>
+                    <div class="score-display">
+                        <div class="score-gauge">
+                            <svg viewBox="0 0 200 100" class="gauge-svg">
+                                <path d="M 20 100 A 80 80 0 0 1 180 100" class="gauge-bg" />
+                                <path d="M 20 100 A 80 80 0 0 1 180 100" class="gauge-fill" id="gaugeFill" />
+                            </svg>
+                            <div class="score-value" id="overallScore">--</div>
+                            <div class="score-label" id="scoreLabel">No Analysis</div>
+                        </div>
+                        <div class="recommendation" id="recommendation">
+                            <span class="rec-icon">💡</span>
+                            <p>Run analysis to see recommendation</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Screening Results -->
+                <div class="screening-results glass-card" id="screeningResults" style="display: none;">
+                    <div class="panel-header">
+                        <h2>Screening Results</h2>
+                        <div class="filter-controls">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="buy">Buy</button>
+                            <button class="filter-btn" data-filter="sell">Sell</button>
+                        </div>
+                    </div>
+                    <div class="results-table-wrapper">
+                        <table class="results-table" id="screeningTable">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Symbol</th>
+                                    <th>Price</th>
+                                    <th>24h Change</th>
+                                    <th>Score</th>
+                                    <th>Signal</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="screeningTableBody">
+                                <!-- Rows populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loader">
+                <div class="loader-spinner"></div>
+                <p id="loadingText">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+
+        <!-- Chart Modal -->
+        <div class="chart-modal" id="chartModal">
+            <div class="chart-modal-content">
+                <div class="chart-modal-header">
+                    <div class="chart-info">
+                        <h2 id="chartSymbolName">--/--</h2>
+                        <select class="chart-timeframe" id="chartTimeframe" style="background: #1a1a24; color: #a0a0b0; border: 1px solid #334; border-radius: 4px; padding: 2px 5px; margin-left: 10px; cursor: pointer;">
+                            <option value="1m">1m</option>
+                            <option value="5m">5m</option>
+                            <option value="15m">15m</option>
+                            <option value="30m">30m</option>
+                            <option value="1h">1H</option>
+                            <option value="4h">4H</option>
+                            <option value="1d">1D</option>
+                            <option value="1w">1W</option>
+                        </select>
+                        <span class="chart-status" id="chartStatus">
+                            <span class="status-dot"></span>
+                            <span>Connecting...</span>
+                        </span>
+                    </div>
+                    <div class="chart-controls">
+                        <button class="chart-control-btn" id="chartZoomIn" title="Zoom In">➕</button>
+                        <button class="chart-control-btn" id="chartZoomOut" title="Zoom Out">➖</button>
+                        <button class="chart-control-btn" id="chartReset" title="Reset View">↻</button>
+                        <button class="chart-close-btn" id="chartCloseBtn">✕</button>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <!-- Indicator Sidebar -->
+                    <div class="indicator-sidebar" id="indicatorSidebar">
+                        <h4>Indicators</h4>
+                        <div class="indicator-toggles">
+                            <label class="indicator-toggle" data-category="overlay">
+                                <input type="checkbox" data-indicator="ema_ribbon">
+                                <span class="toggle-label">EMA Ribbon</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="overlay">
+                                <input type="checkbox" data-indicator="bollinger_squeeze">
+                                <span class="toggle-label">Bollinger Bands</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="overlay">
+                                <input type="checkbox" data-indicator="ichimoku">
+                                <span class="toggle-label">Ichimoku</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="overlay">
+                                <input type="checkbox" data-indicator="vwap">
+                                <span class="toggle-label">VWAP</span>
+                            </label>
+                            <div class="indicator-divider"></div>
+                            <label class="indicator-toggle" data-category="panel">
+                                <input type="checkbox" data-indicator="kdj">
+                                <span class="toggle-label">KDJ</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="panel">
+                                <input type="checkbox" data-indicator="rsi_divergence">
+                                <span class="toggle-label">RSI</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="panel">
+                                <input type="checkbox" data-indicator="macd_crossover">
+                                <span class="toggle-label">MACD</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="panel">
+                                <input type="checkbox" data-indicator="stoch_rsi">
+                                <span class="toggle-label">Stoch RSI</span>
+                            </label>
+                            <label class="indicator-toggle" data-category="panel">
+                                <input type="checkbox" data-indicator="adx_trend">
+                                <span class="toggle-label">ADX</span>
+                            </label>
+                        </div>
+                        <button class="indicator-clear-btn" id="clearIndicators">Clear All</button>
+                    </div>
+                    <!-- Chart Container -->
+                    <div class="chart-container" id="chartContainer">
+                        <!-- TradingView Lightweight Chart will render here -->
+                    </div>
+                </div>
+                <div class="chart-footer">
+                    <div class="chart-price-info">
+                        <span class="price-label">Last:</span>
+                        <span class="price-value" id="chartLastPrice">--</span>
+                        <span class="price-change" id="chartPriceChange">--</span>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item buy">▲ Buy Signal</span>
+                        <span class="legend-item sell">▼ Sell Signal</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backtest Modal -->
+    <div class="modal" id="backtestModal">
+        <div class="modal-content glass-card results-modal-content">
+            <div class="modal-header">
+                <h2 id="backtestTitle">Backtest Results</h2>
+                <button class="btn-close" id="closeBacktestBtn">×</button>
+            </div>
+            <div class="backtest-summary">
+                <div class="stat-box">
+                    <span class="label">Win Rate</span>
+                    <span class="value" id="btWinRate">--%</span>
+                </div>
+                <div class="stat-box">
+                    <span class="label">Trades</span>
+                    <span class="value" id="btTrades">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="label">PnL</span>
+                    <span class="value" id="btPnl">0%</span>
+                </div>
+            </div>
+            <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                <table class="trades-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                            <th style="padding: 8px;">Type</th>
+                            <th style="padding: 8px;">Time</th>
+                            <th style="padding: 8px;">Price</th>
+                            <th style="padding: 8px;">PnL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="backtestTradesList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- TradingView Lightweight Charts CDN -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
+    <script src="bingx-api.js?v=8"></script>
+    <script src="stock-api.js?v=8"></script>
+    <script src="strategies.js?v=8"></script>
+    <script src="chart.js?v=8"></script>
+    <script src="app.js?v=8"></script>
+</body>
+
+</html>
