@@ -543,7 +543,7 @@ const ChartManager = {
     },
 
     getKlineLimit(timeframe) {
-        const limits = { '1m': 1500, '5m': 1000, '15m': 800, '30m': 600, '1h': 500, '4h': 500, '1d': 365, '1w': 200 };
+        const limits = { '1m': 1500, '5m': 1000, '15m': 800, '30m': 600, '1h': 500, '4h': 500, '1d': 365, '1w': 200, '1M': 120 };
         return limits[timeframe] || 500;
     },
 
@@ -949,7 +949,7 @@ const ChartManager = {
     },
 
     formatTimeframe(tf) {
-        const formats = { '1m': '1M', '5m': '5M', '15m': '15M', '30m': '30M', '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W' };
+        const formats = { '1m': '1M', '5m': '5M', '15m': '15M', '30m': '30M', '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W', '1M': '1M' };
         return formats[tf] || tf.toUpperCase();
     },
 

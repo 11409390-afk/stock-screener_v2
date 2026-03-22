@@ -279,28 +279,64 @@ const Strategies = {
     /**
      * Calculate overall score from strategy results
      */
-    calculateOverallScore(results) {
+    calculateOverallScore(results, useResonance = true) {
         if (results.length === 0) return { score: 50, signal: 'neutral', recommendation: '' };
 
         let buyScore = 0;
         let sellScore = 0;
         let totalWeight = 0;
+        
+        // Track category convergence
+        const categorySignals = { buy: new Map(), sell: new Map() };
 
         for (const result of results) {
             const weight = result.strength;
             totalWeight += weight;
 
+            // Find the strategy definition to get its category (type)
+            const strategyDef = this.definitions.find(d => d.id === result.strategyId);
+            const category = strategyDef ? strategyDef.type : 'other';
+            const name = strategyDef ? strategyDef.name : result.strategyId;
+
             if (result.signal === 'buy') {
                 buyScore += weight;
+                if (!categorySignals.buy.has(category)) categorySignals.buy.set(category, []);
+                categorySignals.buy.get(category).push(name);
             } else if (result.signal === 'sell') {
                 sellScore += weight;
+                if (!categorySignals.sell.has(category)) categorySignals.sell.set(category, []);
+                categorySignals.sell.get(category).push(name);
+            }
+        }
+        
+        // Calculate Resonance Effect based on category agreement
+        let resonanceLevel = 'None';
+        let resonanceBoost = 0;
+        let resonatingIndicators = [];
+        
+        if (useResonance) {
+            if (categorySignals.buy.size >= 3 && buyScore > sellScore) {
+                resonanceLevel = 'Strong Bullish Resonance';
+                resonanceBoost = 10;
+                resonatingIndicators = Array.from(categorySignals.buy.values()).flat();
+            } else if (categorySignals.sell.size >= 3 && sellScore > buyScore) {
+                resonanceLevel = 'Strong Bearish Resonance';
+                resonanceBoost = -10;
+                resonatingIndicators = Array.from(categorySignals.sell.values()).flat();
+            } else if (categorySignals.buy.size === 2 && buyScore > sellScore) {
+                resonanceLevel = 'Moderate Bullish Resonance';
+                resonanceBoost = 5;
+                resonatingIndicators = Array.from(categorySignals.buy.values()).flat();
+            } else if (categorySignals.sell.size === 2 && sellScore > buyScore) {
+                resonanceLevel = 'Moderate Bearish Resonance';
+                resonanceBoost = -5;
+                resonatingIndicators = Array.from(categorySignals.sell.values()).flat();
             }
         }
 
         // Normalize to 0-100 scale
-        const netScore = totalWeight > 0
-            ? ((buyScore - sellScore) / totalWeight) * 50 + 50
-            : 50;
+        let netScore = totalWeight > 0 ? ((buyScore - sellScore) / totalWeight) * 50 + 50 : 50;
+        netScore = Math.max(0, Math.min(100, netScore + resonanceBoost)); // Apply boost and clamp 0-100
 
         let signal = 'neutral';
         let recommendation = '';
@@ -321,10 +357,17 @@ const Strategies = {
             signal = 'neutral';
             recommendation = 'Mixed signals. Wait for clearer confirmation before trading.';
         }
+        
+        // Append Resonance context to recommendation
+        if (resonanceLevel.includes('Strong')) {
+            recommendation += ' 🌟 HIGH CONVERGENCE: Multiple indicator types agree. High probability setup.';
+        }
 
         return {
             score: Math.round(netScore),
             signal,
+            resonanceLevel,
+            resonatingIndicators,
             recommendation,
             buyCount: results.filter(r => r.signal === 'buy').length,
             sellCount: results.filter(r => r.signal === 'sell').length,

@@ -12,6 +12,7 @@ class CryptoSelectorApp {
         this.klineData = null;
         this.tickerData = null;
         this.analysisResult = null;  // Store last analysis result
+        this.mtfResult = null;       // Store last MTF result
         this.isLoading = false;
 
         // Multi-API Support
@@ -53,6 +54,8 @@ class CryptoSelectorApp {
             screenAllBtn: document.getElementById('screenAllBtn'),
             exportBtn: document.getElementById('exportBtn'),
             backtestBtn: document.getElementById('backtestBtn'),
+            mtfBtn: document.getElementById('mtfBtn'),
+            resonanceToggle: document.getElementById('resonanceToggle'),
 
             // Backtest Modal
             backtestModal: document.getElementById('backtestModal'),
@@ -62,6 +65,19 @@ class CryptoSelectorApp {
             btTrades: document.getElementById('btTrades'),
             btPnl: document.getElementById('btPnl'),
             backtestTradesList: document.getElementById('backtestTradesList'),
+
+            // MTF Modal
+            mtfModal: document.getElementById('mtfModal'),
+            mtfTitle: document.getElementById('mtfTitle'),
+            closeMtfBtn: document.getElementById('closeMtfBtn'),
+            mtfTable: document.getElementById('mtfTable'),
+
+            // Info Modal
+            infoBtn: document.getElementById('infoBtn'),
+            infoModal: document.getElementById('infoModal'),
+            infoTitle: document.getElementById('infoTitle'),
+            closeInfoBtn: document.getElementById('closeInfoBtn'),
+            infoGrid: document.getElementById('infoGrid'),
 
             // Display
             connectionStatus: document.getElementById('connectionStatus'),
@@ -83,6 +99,7 @@ class CryptoSelectorApp {
             overallScore: document.getElementById('overallScore'),
             scoreLabel: document.getElementById('scoreLabel'),
             gaugeFill: document.getElementById('gaugeFill'),
+            resonanceDetails: document.getElementById('resonanceDetails'),
             recommendation: document.getElementById('recommendation'),
 
             // Screening
@@ -108,11 +125,29 @@ class CryptoSelectorApp {
                 this.elements.backtestModal.classList.remove('active');
             });
         }
+        if (this.elements.closeInfoBtn) {
+            this.elements.closeInfoBtn.addEventListener('click', () => {
+                this.elements.infoModal.classList.remove('active');
+            });
+        }
+
         window.addEventListener('click', (e) => {
             if (e.target === this.elements.backtestModal) {
                 this.elements.backtestModal.classList.remove('active');
             }
+            if (e.target === this.elements.mtfModal) {
+                this.elements.mtfModal.classList.remove('active');
+            }
+            if (e.target === this.elements.infoModal) {
+                this.elements.infoModal.classList.remove('active');
+            }
         });
+
+        if (this.elements.closeMtfBtn) {
+            this.elements.closeMtfBtn.addEventListener('click', () => {
+                this.elements.mtfModal.classList.remove('active');
+            });
+        }
 
         // Load markets
         if (this.elements.loadMarketsBtn) {
@@ -168,6 +203,7 @@ class CryptoSelectorApp {
 
         // Analysis
         this.elements.analyzeBtn.addEventListener('click', () => this.analyze());
+        this.elements.mtfBtn.addEventListener('click', () => this.mtfAnalyze());
         this.elements.viewChartBtn.addEventListener('click', () => this.openChart());
         this.elements.screenAllBtn.addEventListener('click', () => this.screenAll());
         this.elements.exportBtn.addEventListener('click', () => this.exportResults());
@@ -264,6 +300,7 @@ class CryptoSelectorApp {
         this.klineData = null;
         this.tickerData = null;
         this.analysisResult = null;
+        this.mtfResult = null;
         this.currentSignals = [];
 
         // Clear UI elements
@@ -288,6 +325,7 @@ class CryptoSelectorApp {
         this.elements.signalSummary.innerHTML = '<span class="buy-count">0 Buy</span><span class="sell-count">0 Sell</span><span class="neutral-count">0 Neutral</span>';
         this.elements.overallScore.textContent = '--';
         this.elements.scoreLabel.textContent = 'No Analysis';
+        if (this.elements.resonanceDetails) this.elements.resonanceDetails.innerHTML = '';
         this.elements.recommendation.innerHTML = '<span class="rec-icon">💡</span><p>Run analysis to see recommendation</p>';
 
         // Reset connection status
@@ -532,8 +570,11 @@ class CryptoSelectorApp {
         this.elements.analyzeBtn.disabled = !(hasSymbol && hasStrategies);
         this.elements.viewChartBtn.disabled = !hasSymbol;
         this.elements.screenAllBtn.disabled = !(hasSymbols && hasStrategies);
-        this.elements.exportBtn.disabled = !this.analysisResult && !this.screeningData; // Enable after analysis or screening
+        this.elements.exportBtn.disabled = !this.analysisResult && !this.screeningData && !this.mtfResult; 
 
+        if (this.elements.mtfBtn) {
+            this.elements.mtfBtn.disabled = !(hasSymbol && hasStrategies);
+        }
         if (this.elements.backtestBtn) {
             this.elements.backtestBtn.disabled = !(hasSymbol && hasStrategies);
         }
@@ -632,9 +673,10 @@ class CryptoSelectorApp {
             this.showLoading('Running strategy analysis...');
 
             // Run analysis
+            const useResonance = this.elements.resonanceToggle ? this.elements.resonanceToggle.checked : true;
             const strategies = Array.from(this.selectedStrategies);
             const results = Strategies.analyzeAll(this.klineData, strategies);
-            const overall = Strategies.calculateOverallScore(results);
+            const overall = Strategies.calculateOverallScore(results, useResonance);
 
             // Update UI
             // Store analysis result for export
@@ -699,8 +741,100 @@ class CryptoSelectorApp {
         this.hideLoading();
     }
 
+    async mtfAnalyze() {
+        if (!this.selectedSymbol || this.selectedStrategies.size === 0) {
+            this.showToast('Please select a symbol and at least one strategy', 'error');
+            return;
+        }
+
+        this.showLoading('Running Multi-Timeframe Analysis...');
+        
+        try {
+            const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1M'];
+            const strategies = Array.from(this.selectedStrategies);
+            const useResonance = this.elements.resonanceToggle ? this.elements.resonanceToggle.checked : true;
+            
+            const mtfData = {};
+            
+            for (let tf of timeframes) {
+                this.elements.loadingText.textContent = `Analyzing ${tf}...`;
+                try {
+                    const klines = await this.currentAPI.getKlines(this.selectedSymbol, tf, 200);
+                    if (!klines || klines.length < 50) continue; // Skip if no data for TF
+                    
+                    const results = Strategies.analyzeAll(klines, strategies);
+                    const overall = Strategies.calculateOverallScore(results, useResonance);
+                    
+                    mtfData[tf] = { overall, results };
+                } catch(e) {
+                    console.warn(`Failed to fetch ${tf} data for MTF:`, e);
+                }
+            }
+
+            // Build HTML Table
+            let theadHtml = '<thead><tr><th style="text-align:left; padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">Indicator</th>';
+            timeframes.forEach(tf => { if (mtfData[tf]) theadHtml += `<th style="padding: 12px 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);">${tf}</th>`; });
+            theadHtml += '</tr></thead>';
+            
+            let tbodyHtml = '<tbody>';
+            
+            // Row 1: Overall Score
+            tbodyHtml += '<tr><td style="font-weight:bold; padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">Overall Signal</td>';
+            timeframes.forEach(tf => {
+                if (mtfData[tf]) {
+                    const signal = mtfData[tf].overall.signal;
+                    tbodyHtml += `<td style="text-align: center; padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.05);"><span class="signal-badge ${signal}" style="display:inline-block; padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">${signal.toUpperCase()}</span></td>`;
+                }
+            });
+            tbodyHtml += '</tr>';
+
+            // Rows 2+: Individual Strategies
+            strategies.forEach(strategyId => {
+                const strategyDef = Strategies.definitions.find(s => s.id === strategyId);
+                tbodyHtml += `<tr><td style="text-align:left; color:#a0a0b0; padding: 10px;">${strategyDef ? strategyDef.name : strategyId}</td>`;
+                timeframes.forEach(tf => {
+                    if (mtfData[tf]) {
+                        const res = mtfData[tf].results.find(r => r.strategyId === strategyId);
+                        const sig = res ? res.signal : 'neutral';
+                        tbodyHtml += `<td style="text-align: center; padding: 10px;"><span style="color:${sig === 'buy' ? '#10b981' : sig === 'sell' ? '#ef4444' : '#888'}; font-weight: 500;">${sig.toUpperCase()}</span></td>`;
+                    }
+                });
+                tbodyHtml += '</tr>';
+            });
+            tbodyHtml += '</tbody>';
+
+            this.elements.mtfTable.innerHTML = theadHtml + tbodyHtml;
+            this.elements.mtfTitle.textContent = `${this.currentAPI.formatSymbol(this.selectedSymbol)} MTF Analysis`;
+            
+            // Store for export
+            this.mtfResult = {
+                symbol: this.selectedSymbol,
+                timeframes: timeframes,
+                strategies: strategies,
+                data: mtfData,
+                timestamp: new Date().toISOString()
+            };
+            this.elements.exportBtn.disabled = false;
+            
+            this.elements.mtfModal.classList.add('active');
+
+        } catch (error) {
+            this.showToast('MTF Analysis failed: ' + error.message, 'error');
+        }
+        this.hideLoading();
+    }
+
     updateMarketOverview() {
         this.elements.currentSymbol.textContent = this.currentAPI.formatSymbol(this.selectedSymbol);
+
+        if (this.currentSource === 'STOCK' && this.selectedSymbol) {
+            if (this.elements.infoBtn) {
+                this.elements.infoBtn.style.display = 'inline-block';
+                this.elements.infoBtn.onclick = () => this.showCompanyInfo();
+            }
+        } else {
+            if (this.elements.infoBtn) this.elements.infoBtn.style.display = 'none';
+        }
 
         if (this.tickerData) {
             const price = parseFloat(this.tickerData.lastPrice || this.tickerData.c || 0);
@@ -716,6 +850,56 @@ class CryptoSelectorApp {
             this.elements.high24h.textContent = '$' + this.currentAPI.formatPrice(high);
             this.elements.low24h.textContent = '$' + this.currentAPI.formatPrice(low);
         }
+    }
+
+    showCompanyInfo() {
+        const stock = this.currentAPI.cachedSymbols.find(s => s.symbol === this.selectedSymbol);
+        if (!stock) return;
+
+        this.elements.infoTitle.textContent = `${stock.symbol} ${stock.baseAsset} - Basic Info`;
+        
+        const raw = stock.raw;
+        const pe = raw.PE && raw.PE !== '-' ? raw.PE : '--';
+        const pb = raw.PB && raw.PB !== '-' ? raw.PB : '--';
+        const yieldPct = raw.Yield && raw.Yield !== '-' ? raw.Yield : '--';
+        const yoy = raw.RevYoY && raw.RevYoY !== '-' ? raw.RevYoY : '--';
+        const mom = raw.RevMoM && raw.RevMoM !== '-' ? raw.RevMoM : '--';
+        const ytd = raw.RevYTD && raw.RevYTD !== '-' ? raw.RevYTD : '--';
+        const cashDiv = raw.CashDiv && raw.CashDiv !== '-' ? raw.CashDiv : '--';
+        const stockDiv = raw.StockDiv && raw.StockDiv !== '-' ? raw.StockDiv : '--';
+        const pledge = raw.PledgeRatio && raw.PledgeRatio !== '-' ? raw.PledgeRatio : '--';
+        const industry = stock.industry || '--';
+
+        // Dynamic color coding for P/E Ratio
+        const peNum = parseFloat(pe);
+        let peColor = '#fff';
+        if (!isNaN(peNum)) {
+            if (peNum > 30) peColor = '#ef4444';      // Red (Overvalued)
+            else if (peNum < 15) peColor = '#10b981'; // Green (Undervalued)
+        }
+
+        // Card Styling
+        const cardStyle = "background: rgba(0,0,0,0.25); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);";
+        const labelStyle = "color: #a0a0b0; font-size: 0.85rem; font-weight: 500;";
+        const valStyle = "font-size: 1.2rem; font-weight: 600;";
+
+        this.elements.infoGrid.innerHTML = `
+            <div style="${cardStyle} grid-column: span 2;"><span style="${labelStyle}">Industry / 產業別</span><span style="${valStyle} color: #3b82f6;">${industry}</span></div>
+            
+            <div style="${cardStyle}"><span style="${labelStyle}">P/E Ratio / 本益比</span><span style="${valStyle} color: ${peColor};">${pe}</span></div>
+            <div style="${cardStyle}"><span style="${labelStyle}">P/B Ratio / 股價淨值比</span><span style="${valStyle} color: #fff;">${pb}</span></div>
+            
+            <div style="${cardStyle}"><span style="${labelStyle}">Yield / 殖利率</span><span style="${valStyle} color: #10b981;">${yieldPct !== '--' ? yieldPct + '%' : '--'}</span></div>
+            <div style="${cardStyle}"><span style="${labelStyle}">Rev YoY / 營收年增率</span><span style="${valStyle} color: ${parseFloat(yoy) > 0 ? '#10b981' : '#ef4444'};">${yoy !== '--' ? yoy + '%' : '--'}</span></div>
+            
+            <div style="${cardStyle}"><span style="${labelStyle}">Rev MoM / 營收月增率</span><span style="${valStyle} color: ${parseFloat(mom) > 0 ? '#10b981' : '#ef4444'};">${mom !== '--' ? mom + '%' : '--'}</span></div>
+            <div style="${cardStyle}"><span style="${labelStyle}">Rev YTD / 累計營收增率</span><span style="${valStyle} color: ${parseFloat(ytd) > 0 ? '#10b981' : '#ef4444'};">${ytd !== '--' ? ytd + '%' : '--'}</span></div>
+            
+            <div style="${cardStyle}"><span style="${labelStyle}">Cash Div / 現金股利</span><span style="${valStyle} color: #f59e0b;">${cashDiv !== '--' ? '$' + cashDiv : '--'}</span></div>
+            <div style="${cardStyle}"><span style="${labelStyle}">Dir. Pledge / 董監質押</span><span style="${valStyle} color: ${parseFloat(pledge) > 30 ? '#ef4444' : '#fff'};">${pledge !== '--' ? pledge + '%' : '--'}</span></div>
+        `;
+
+        this.elements.infoModal.classList.add('active');
     }
 
     renderSignals(results) {
@@ -771,6 +955,31 @@ class CryptoSelectorApp {
         // Label
         this.elements.scoreLabel.textContent = overall.signal.toUpperCase();
         this.elements.scoreLabel.style.color = color;
+        
+        // Resonance Badge
+        const resBadge = document.getElementById('resonanceBadge');
+        if (resBadge) {
+            resBadge.textContent = overall.resonanceLevel;
+            if (overall.resonanceLevel.includes('Strong Bullish')) {
+                resBadge.style.color = '#10b981';
+                resBadge.style.border = '1px solid #10b981';
+            } else if (overall.resonanceLevel.includes('Strong Bearish')) {
+                resBadge.style.color = '#ef4444';
+                resBadge.style.border = '1px solid #ef4444';
+            } else {
+                resBadge.style.color = '#a0a0b0';
+                resBadge.style.border = '1px solid transparent';
+            }
+            
+            // Update Resonance Details (Names of indicators)
+            if (this.elements.resonanceDetails) {
+                if (overall.resonatingIndicators && overall.resonatingIndicators.length > 0) {
+                    this.elements.resonanceDetails.innerHTML = `Driven by:<br><span style="color: #fff; font-weight: 500; display: block; margin-top: 4px;">${overall.resonatingIndicators.join(', ')}</span>`;
+                } else {
+                    this.elements.resonanceDetails.innerHTML = '';
+                }
+            }
+        }
 
         // Recommendation
         this.elements.recommendation.innerHTML = `
@@ -811,8 +1020,9 @@ class CryptoSelectorApp {
                     if (klines.length < 50) continue;
 
                     const strategies = Array.from(this.selectedStrategies);
+                    const useResonance = this.elements.resonanceToggle ? this.elements.resonanceToggle.checked : true;
                     const analysis = Strategies.analyzeAll(klines, strategies);
-                    const overall = Strategies.calculateOverallScore(analysis);
+                    const overall = Strategies.calculateOverallScore(analysis, useResonance);
 
                     // Capture individual strategy signals for Excel Export
                     const stratSignals = {};
@@ -874,7 +1084,7 @@ class CryptoSelectorApp {
                 <td class="${result.change >= 0 ? 'positive' : 'negative'}">${this.currentAPI.formatPercent(result.change)}</td>
                 <td><strong>${result.score}</strong>/100</td>
                 <td><span class="signal-badge ${result.signal}">${result.signal.toUpperCase()}</span></td>
-                <td>
+                <td style="white-space: nowrap;">
                     <button class="btn btn-sm" onclick="app.analyzeSymbol('${result.symbol}')">
                         Analyze
                     </button>
@@ -928,6 +1138,7 @@ class CryptoSelectorApp {
         // Create workbook
         const wb = XLSX.utils.book_new();
         let filename = '';
+        let hasData = false;
 
         // Check if we have screening data
         if (this.screeningData && this.screeningData.length > 0) {
@@ -951,9 +1162,11 @@ class CryptoSelectorApp {
             const ws = XLSX.utils.json_to_sheet(data);
             XLSX.utils.book_append_sheet(wb, ws, "Screening Results");
             filename = `crypto-screening-${new Date().toISOString().split('T')[0]}.xlsx`;
+            hasData = true;
         }
-        // Check if we have single analysis result
-        else if (this.analysisResult) {
+        
+        // Append single analysis result if exists
+        if (this.analysisResult) {
             const result = this.analysisResult;
 
             // Sheet 1: Overview
@@ -980,9 +1193,44 @@ class CryptoSelectorApp {
             const wsStrategies = XLSX.utils.json_to_sheet(strategyData);
             XLSX.utils.book_append_sheet(wb, wsStrategies, "Strategies");
 
-            filename = `${result.symbol}-analysis-${new Date().toISOString().split('T')[0]}.xlsx`;
+            if (!filename) filename = `${result.symbol}-analysis-${new Date().toISOString().split('T')[0]}.xlsx`;
+            hasData = true;
         }
-        else {
+        
+        // Append MTF Analysis if exists
+        if (this.mtfResult) {
+            const res = this.mtfResult;
+            const data = [];
+            
+            // Row 1: Overall Signal
+            const overallRow = { Indicator: 'Overall Signal' };
+            res.timeframes.forEach(tf => {
+                overallRow[tf] = res.data[tf] ? res.data[tf].overall.signal.toUpperCase() : '--';
+            });
+            data.push(overallRow);
+            
+            // Rows 2+: Individual Strategies
+            res.strategies.forEach(strategyId => {
+                const sDef = Strategies.definitions.find(d => d.id === strategyId);
+                const row = { Indicator: sDef ? sDef.name : strategyId };
+                res.timeframes.forEach(tf => {
+                    if (res.data[tf]) {
+                        const sRes = res.data[tf].results.find(r => r.strategyId === strategyId);
+                        row[tf] = sRes ? sRes.signal.toUpperCase() : 'NEUTRAL';
+                    } else {
+                        row[tf] = '--';
+                    }
+                });
+                data.push(row);
+            });
+            
+            const wsMtf = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, wsMtf, "MTF Analysis");
+            if (!filename) filename = `${res.symbol}-MTF-${new Date().toISOString().split('T')[0]}.xlsx`;
+            hasData = true;
+        }
+
+        if (!hasData) {
             this.showToast('No data to export. Run an analysis first!', 'error');
             return;
         }

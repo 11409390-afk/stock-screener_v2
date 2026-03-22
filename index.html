@@ -17,7 +17,7 @@
         <header class="header">
             <div class="logo">
                 <span class="logo-icon">📊</span>
-                <h1>Crypto Selector</h1>
+                <h1>Assets Selector</h1>
             </div>
             <div class="header-actions">
                 <button id="refreshBtn" class="btn btn-icon" title="Refresh Data">
@@ -57,7 +57,7 @@
                         </select>
                     </div>
 
-                    <div class="control-group symbol-search-group">
+                    <div class="control-group symbol-search-group" style="position: relative; z-index: 999;">
                         <label for="symbolSearch">Trading Pair</label>
                         <div class="search-wrapper">
                             <input type="text" id="symbolSearch" placeholder="Search or select pair (e.g., ETH, BTC...)"
@@ -80,6 +80,7 @@
                             <option value="4h">4 Hours</option>
                             <option value="1d">1 Day</option>
                             <option value="1w">1 Week</option>
+                            <option value="1M">1 Month</option>
                         </select>
                     </div>
 
@@ -108,9 +109,17 @@
 
             <!-- Analysis Controls -->
             <section class="analysis-controls glass-card">
+                <label class="control-group" style="display: flex; align-items: center; gap: 8px; margin-right: auto; cursor: pointer;" title="Boost score when different types of indicators agree">
+                    <input type="checkbox" id="resonanceToggle" checked>
+                    <span style="font-size: 0.9rem; color: #a0a0b0;">Enable Resonance</span>
+                </label>
                 <button id="analyzeBtn" class="btn btn-analyze" disabled>
                     <span class="btn-icon">⚡</span>
                     <span class="btn-text">Analyze Selected</span>
+                </button>
+                <button id="mtfBtn" class="btn btn-analyze" style="background: #8b5cf6;" disabled>
+                    <span class="btn-icon">⏱️</span>
+                    <span class="btn-text">MTF Analyze</span>
                 </button>
                 <button id="viewChartBtn" class="btn btn-chart" disabled>
                     <span class="btn-icon">📈</span>
@@ -136,7 +145,10 @@
                 <div class="market-overview glass-card" id="marketOverview">
                     <div class="panel-header">
                         <h2>Market Overview</h2>
-                        <span class="symbol-name" id="currentSymbol">--</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span class="symbol-name" id="currentSymbol">--</span>
+                            <button id="infoBtn" class="btn btn-sm" style="display: none; background: #3b82f6; border: none; padding: 4px 8px; color: white; cursor: pointer; border-radius: 4px;">ℹ️ Info</button>
+                        </div>
                     </div>
                     <div class="market-stats">
                         <div class="stat-card">
@@ -194,6 +206,10 @@
                             </svg>
                             <div class="score-value" id="overallScore">--</div>
                             <div class="score-label" id="scoreLabel">No Analysis</div>
+                        </div>
+                        <div id="resonanceContainer" style="text-align: center; margin-top: 15px; margin-bottom: 10px; min-height: 40px;">
+                            <div id="resonanceBadge" style="font-size: 0.85rem; font-weight: bold; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.05); display: inline-block; transition: all 0.3s ease;">Resonance: --</div>
+                            <div id="resonanceDetails" style="margin-top: 8px; font-size: 0.8rem; color: #a0a0b0; max-width: 280px; margin-left: auto; margin-right: auto; line-height: 1.5; word-wrap: break-word;"></div>
                         </div>
                         <div class="recommendation" id="recommendation">
                             <span class="rec-icon">💡</span>
@@ -261,6 +277,7 @@
                             <option value="4h">4H</option>
                             <option value="1d">1D</option>
                             <option value="1w">1W</option>
+                            <option value="1M">1M</option>
                         </select>
                         <select class="chart-timezone" id="chartTimezone" style="background: #1a1a24; color: #a0a0b0; border: 1px solid #334; border-radius: 4px; padding: 2px 5px; margin-left: 10px; cursor: pointer;">
                             <option value="local">Local Time</option>
@@ -346,9 +363,9 @@
     <!-- Backtest Modal -->
     <div class="modal" id="backtestModal">
         <div class="modal-content glass-card results-modal-content">
-            <div class="modal-header">
-                <h2 id="backtestTitle">Backtest Results</h2>
-                <button class="btn-close" id="closeBacktestBtn">×</button>
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px;">
+                <h2 id="backtestTitle" style="margin: 0; font-size: 1.25rem;">Backtest Results</h2>
+                <button id="closeBacktestBtn" style="background: rgba(255,255,255,0.05); border: none; color: #a0a0b0; font-size: 20px; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">✕</button>
             </div>
             <div class="backtest-summary">
                 <div class="stat-box">
@@ -379,19 +396,51 @@
             </div>
         </div>
     </div>
+
+    <!-- MTF Analysis Modal -->
+    <div class="modal" id="mtfModal">
+        <div class="modal-content glass-card results-modal-content" style="max-width: 800px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px;">
+                <h2 id="mtfTitle" style="margin: 0; font-size: 1.25rem;">Multi-Timeframe Analysis</h2>
+                <button id="closeMtfBtn" style="background: rgba(255,255,255,0.05); border: none; color: #a0a0b0; font-size: 20px; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">✕</button>
+            </div>
+            <div style="margin-bottom: 15px; color: #a0a0b0; font-size: 0.9rem;">
+                Comparing signals across multiple timeframes to detect macro/micro convergence.
+            </div>
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="results-table" id="mtfTable" style="width: 100%;">
+                    <!-- Populated by JS -->
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Company Info Modal -->
+    <div class="modal" id="infoModal">
+        <div class="modal-content glass-card results-modal-content" style="max-width: 600px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                <h2 id="infoTitle" style="margin: 0; font-size: 1.25rem;">Company Basic Information</h2>
+                <button id="closeInfoBtn" style="background: rgba(255,255,255,0.05); border: none; color: #a0a0b0; font-size: 20px; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">✕</button>
+            </div>
+            <div class="info-grid" id="infoGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- SheetJS for Excel Export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- TradingView Lightweight Charts CDN -->
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
-    <script src="bingx-api.js?v=12"></script>
-    <script src="stock-api.js?v=12"></script>
-    <script src="indicators.js?v=13"></script>
-    <script src="strategy-configs.js?v=13"></script>
-    <script src="strategy-analyzers.js?v=13"></script>
-    <script src="strategies.js?v=12"></script>
-    <script src="chart.js?v=12"></script>
-    <script src="app.js?v=12"></script>
+    <script src="bingx-api.js?v=14"></script>
+    <script src="stock-api.js?v=14"></script>
+    <script src="indicators.js?v=14"></script>
+    <script src="strategy-configs.js?v=14"></script>
+    <script src="strategy-analyzers.js?v=14"></script>
+    <script src="strategies.js?v=14"></script>
+    <script src="chart.js?v=14"></script>
+    <script src="app.js?v=14"></script>
 </body>
 
 </html>

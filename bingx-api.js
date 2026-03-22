@@ -165,10 +165,10 @@ const BingXAPI = {
         // Map interval format for v2 API
         const intervalMap = {
             '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m',
-            '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w',
+            '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w', '1M': '1M',
             '1 Minute': '1m', '5 Minutes': '5m', '15 Minutes': '15m',
             '30 Minutes': '30m', '1 Hour': '1h', '4 Hours': '4h',
-            '1 Day': '1d', '1 Week': '1w'
+            '1 Day': '1d', '1 Week': '1w', '1 Month': '1M'
         };
 
         const mappedInterval = intervalMap[interval] || '1h';

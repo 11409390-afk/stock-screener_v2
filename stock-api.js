@@ -196,7 +196,7 @@ const StockAPI = {
         const intervalMap = {
             '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m',
             '1h': '60m', '4h': '1d', // Yahoo doesn't perfectly support 4h, default to daily
-            '1d': '1d', '1w': '1wk'
+            '1d': '1d', '1w': '1wk', '1M': '1mo'
         };
         
         const yInterval = intervalMap[interval] || '1d';
@@ -205,6 +205,7 @@ const StockAPI = {
         let range = '1y'; 
         if (['1m', '5m', '15m', '30m', '60m'].includes(yInterval)) range = '1mo';
         else if (yInterval === '1wk') range = '5y';
+        else if (yInterval === '1mo') range = '10y';
 
         try {
             const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${yInterval}&range=${range}`;
@@ -250,7 +251,8 @@ const StockAPI = {
         const q = query.toUpperCase();
         return this.cachedSymbols.filter(s =>
             String(s.symbol).toUpperCase().includes(q) ||
-            (s.baseAsset && String(s.baseAsset).toUpperCase().includes(q))
+            (s.baseAsset && String(s.baseAsset).toUpperCase().includes(q)) ||
+            (s.industry && String(s.industry).toUpperCase().includes(q))
         ).slice(0, 15);
     },
 
