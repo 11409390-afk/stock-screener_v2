@@ -20,6 +20,7 @@ class CryptoSelectorApp {
 
         // DOM Elements
         this.elements = {};
+        this.searchTimeout = null;
 
         // Initialize
         this.init();
@@ -133,7 +134,10 @@ class CryptoSelectorApp {
         }
 
         // Symbol search
-        this.elements.symbolSearch.addEventListener('input', (e) => this.handleSearch(e.target.value));
+        this.elements.symbolSearch.addEventListener('input', (e) => {
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => this.handleSearch(e.target.value), 200);
+        });
         this.elements.symbolSearch.addEventListener('focus', (e) => {
             this.handleSearch(e.target.value);
         });

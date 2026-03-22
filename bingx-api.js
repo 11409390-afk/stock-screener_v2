@@ -75,11 +75,16 @@ const BingXAPI = {
             try {
                 console.log(`Trying proxy ${proxyIndex + 1}/${this.CORS_PROXIES.length}...`);
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+
                 const response = await fetch(proxyUrl, {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' },
-                    cache: 'no-store'
+                    cache: 'no-store',
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);

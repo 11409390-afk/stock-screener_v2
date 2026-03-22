@@ -3,11 +3,11 @@ import json
 import os
 
 ENDPOINTS = [
-    {"url": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", "type": "TWSE"},
-    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", "type": "TPEx"},
-    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_emg_daily_avg_quotes", "type": "TPEx"},
-    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_warrant_daily_close_quotes", "type": "TPEx"},
-    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_cb_daily_close_quotes", "type": "TPEx"}
+    {"url": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", "type": "TWSE", "board": "MAINBOARD"},
+    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes", "type": "TPEx", "board": "MAINBOARD"},
+    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_emg_quotes", "type": "TPEx", "board": "EMERGING"},
+    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_warrant_daily_close_quotes", "type": "TPEx", "board": "WARRANTS"},
+    {"url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_cb_daily_close_quotes", "type": "TPEx", "board": "BONDS"}
 ]
 
 def fetch_data():

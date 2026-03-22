@@ -606,7 +606,7 @@ const ChartManager = {
     addEmaRibbon(closes, times) {
         const periods = [8, 13, 21, 34, 55];
         periods.forEach((period, i) => {
-            const ema = Strategies.ema(closes, period);
+            const ema = window.Indicators.ema(closes, period);
             const data = times.map((t, idx) => ({ time: t, value: ema[idx] })).filter(d => d.value !== null);
 
             const series = this.chart.addLineSeries({
@@ -622,7 +622,7 @@ const ChartManager = {
 
     addBollingerBands(closes, times) {
         const params = Strategies.getParams('bollinger_squeeze');
-        const { upper, middle, lower } = Strategies.bollingerBands(closes, params.period || 20, params.stdDev || 2);
+        const { upper, middle, lower } = window.Indicators.bollingerBands(closes, params.period || 20, params.stdDev || 2);
 
         // Upper band
         const upperSeries = this.chart.addLineSeries({
@@ -656,7 +656,7 @@ const ChartManager = {
 
     addIchimokuCloud(times) {
         const params = Strategies.getParams('ichimoku');
-        const { tenkanSen, kijunSen, senkouA, senkouB } = Strategies.ichimoku(this.klineData, params.tenkan, params.kijun, params.senkou);
+        const { tenkanSen, kijunSen, senkouA, senkouB } = window.Indicators.ichimoku(this.klineData, params.tenkan, params.kijun, params.senkou);
 
         const tenkanData = times.map((t, i) => ({ time: t, value: tenkanSen[i] })).filter(d => d.value !== null);
         const kijunData = times.map((t, i) => ({ time: t, value: kijunSen[i] })).filter(d => d.value !== null);
@@ -671,7 +671,7 @@ const ChartManager = {
     },
 
     addVwap(times) {
-        const vwapValues = Strategies.vwap(this.klineData);
+        const vwapValues = window.Indicators.vwap(this.klineData);
         const data = times.map((t, i) => ({ time: t, value: vwapValues[i] })).filter(d => d.value !== null);
 
         const series = this.chart.addLineSeries({
@@ -693,7 +693,7 @@ const ChartManager = {
         this.indicatorPanels['rsi_divergence'] = { chart, panel };
 
         const params = Strategies.getParams('rsi_divergence');
-        const rsi = Strategies.rsi(closes, params.period || 14);
+        const rsi = window.Indicators.rsi(closes, params.period || 14);
         const data = times.map((t, i) => ({ time: t, value: rsi[i] })).filter(d => d.value !== null);
 
         const series = chart.addLineSeries({
@@ -716,7 +716,7 @@ const ChartManager = {
         this.indicatorPanels['kdj'] = { chart, panel };
 
         const params = Strategies.getParams('kdj');
-        const { k, d, j } = Strategies.kdj(this.klineData, params.period || 9, params.kSmooth || 3, params.dSmooth || 3);
+        const { k, d, j } = window.Indicators.kdj(this.klineData, params.period || 9, params.kSmooth || 3, params.dSmooth || 3);
 
         const kData = times.map((t, i) => ({ time: t, value: k[i] })).filter(x => x.value !== null);
         const dData = times.map((t, i) => ({ time: t, value: d[i] })).filter(x => x.value !== null);
@@ -756,7 +756,7 @@ const ChartManager = {
         this.indicatorPanels['macd_crossover'] = { chart, panel };
 
         const params = Strategies.getParams('macd_crossover');
-        const { macdLine, signalLine, histogram } = Strategies.macd(closes, params.fast || 12, params.slow || 26, params.signal || 9);
+        const { macdLine, signalLine, histogram } = window.Indicators.macd(closes, params.fast || 12, params.slow || 26, params.signal || 9);
 
         // MACD Line
         const macdData = times.map((t, i) => ({ time: t, value: macdLine[i] })).filter(d => d.value !== undefined);
@@ -793,7 +793,7 @@ const ChartManager = {
         this.indicatorPanels['stoch_rsi'] = { chart, panel };
 
         const params = Strategies.getParams('stoch_rsi');
-        const { k, d } = Strategies.stochRsi(closes, params.rsiPeriod || 14, params.stochPeriod || 14, params.kSmooth || 3, params.dSmooth || 3);
+        const { k, d } = window.Indicators.stochRsi(closes, params.rsiPeriod || 14, params.stochPeriod || 14, params.kSmooth || 3, params.dSmooth || 3);
 
         const kData = times.slice(-k.length).map((t, i) => ({ time: t, value: k[i] })).filter(x => x.value !== null);
         const dData = times.slice(-d.length).map((t, i) => ({ time: t, value: d[i] })).filter(x => x.value !== null);
@@ -821,7 +821,7 @@ const ChartManager = {
         this.indicatorPanels['adx_trend'] = { chart, panel };
 
         const params = Strategies.getParams('adx_trend');
-        const { adx, plusDI, minusDI } = Strategies.adx(this.klineData, params.period || 14);
+        const { adx, plusDI, minusDI } = window.Indicators.adx(this.klineData, params.period || 14);
 
         const adxData = times.map((t, i) => ({ time: t, value: adx[i] })).filter(d => d.value !== null);
         const plusData = times.map((t, i) => ({ time: t, value: plusDI[i] })).filter(d => d.value !== null);

@@ -9,13 +9,56 @@ const StockAPI = {
     lastSymbolFetch: 0,
     CACHE_DURATION: 1000 * 60 * 5, // 5 minutes
 
+    // CORS Proxies for Yahoo Finance
+    CORS_PROXIES: [
+        'https://api.allorigins.win/raw?url=',
+        'https://corsproxy.io/?',
+        'https://api.codetabs.com/v1/proxy?quest=',
+        'https://thingproxy.freeboard.io/fetch/'
+    ],
+    currentProxyIndex: 0,
+
     /**
      * Request with robust CORS handling and proxy rotation
      */
     async request(url) {
-        const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
+        // 1. If it's a relative URL (like ./tw_stocks.json), fetch directly
+        if (!url.startsWith('http')) {
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        }
+
+        // 2. Try direct fetch first for external APIs
+        try {
+            const response = await fetch(url, { cache: 'no-store' });
+            if (response.ok) return await response.json();
+        } catch (e) {
+            console.log('Direct fetch failed, falling back to proxies for:', url);
+        }
+
+        // 3. Fallback to Proxy Rotation
+        for (let attempt = 0; attempt < this.CORS_PROXIES.length; attempt++) {
+            const proxyIndex = (this.currentProxyIndex + attempt) % this.CORS_PROXIES.length;
+            const proxyUrl = this.CORS_PROXIES[proxyIndex] + encodeURIComponent(url);
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+
+                const response = await fetch(proxyUrl, { cache: 'no-store', signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (response.ok) {
+                    this.currentProxyIndex = proxyIndex; // Save the working proxy
+                    return await response.json();
+                }
+            } catch (error) {
+                console.warn(`Proxy ${proxyIndex + 1} failed for Stock API.`);
+            }
+        }
+
+        throw new Error('All CORS proxies failed for Stock API request.');
     },
 
     /**
@@ -28,19 +71,10 @@ const StockAPI = {
             
             let filteredSymbols = [];
 
-            if (boardType === 'MAINBOARD') {
-                // Filter for mainboard and standard TPEx OTC
-                filteredSymbols = data.filter(s => 
-                    (s.raw.type === 'TWSE' || s.raw.type === 'TPEx') && 
-                    !s.raw.WarrantCode && !s.raw.BondCode && !s.raw.SecuritiesCompanyCode
-                );
-            } else if (boardType === 'EMERGING') {
-                // Emerging usually has SecuritiesCompanyCode or unique structure
-                filteredSymbols = data.filter(s => s.raw.type === 'TPEx' && s.raw.SecuritiesCompanyCode);
-            } else if (boardType === 'WARRANTS') {
-                filteredSymbols = data.filter(s => s.raw.WarrantCode);
-            } else if (boardType === 'BONDS') {
-                filteredSymbols = data.filter(s => s.raw.BondCode);
+            if (boardType) {
+                filteredSymbols = data.filter(s => s.board === boardType);
+            } else {
+                filteredSymbols = data;
             }
             
             this.cachedSymbols = filteredSymbols.length > 0 ? filteredSymbols : data;
@@ -96,20 +130,20 @@ const StockAPI = {
 
         // If we have TWSE/TPEx raw data (2000+ stocks), use it for the screener.
         // Yahoo Finance restricts URL lengths, so we can't request 2000 quotes at once.
-        if (this.cachedSymbols.length > 100 && this.cachedSymbols[0].raw.ClosingPrice) {
+        if (this.cachedSymbols.length > 100 && this.cachedSymbols[0].raw.NormalizedClose) {
             return this.cachedSymbols.map(stock => {
                 const r = stock.raw;
-                const close = parseFloat(r.ClosingPrice || 0);
-                const change = parseFloat(r.Change || 0);
+                const close = parseFloat(r.NormalizedClose || 0);
+                const change = parseFloat(r.NormalizedChange || 0);
                 const prevClose = close - change;
                 
                 return {
                     symbol: stock.symbol,
                     lastPrice: close,
                     priceChangePercent: prevClose !== 0 ? (change / prevClose) * 100 : 0,
-                    highPrice: parseFloat(r.HighestPrice || 0),
-                    lowPrice: parseFloat(r.LowestPrice || 0),
-                    quoteVolume: parseFloat(r.TradeVolume || r.TradeAmount || 0)
+                    highPrice: parseFloat(r.NormalizedHigh || 0),
+                    lowPrice: parseFloat(r.NormalizedLow || 0),
+                    quoteVolume: parseFloat(r.NormalizedVolume || 0)
                 };
             });
         } else {
