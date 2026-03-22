@@ -94,6 +94,7 @@ const StockAPI = {
         }
 
         const stock = this.cachedSymbols.find(s => s.symbol === symbol);
+        if (!stock) return null;
         const type = stock ? stock.raw.type : 'TWSE'; // Default to TWSE
         const yahooSymbol = type === 'TWSE' ? `${symbol}.TW` : `${symbol}.TWO`;
 
@@ -118,8 +119,23 @@ const StockAPI = {
                 volume: quote.regularMarketVolume || 0
             };
         } catch (e) {
-            console.warn(`Failed to fetch live quote for ${symbol}`, e);
-            return null;
+            console.warn(`Failed to fetch live quote for ${symbol} from Yahoo, using local fallback`, e);
+            
+            // Fallback to local daily data for Warrants/Bonds that Yahoo ignores
+            const r = stock.raw;
+            const close = parseFloat(r.NormalizedClose || 0);
+            const change = parseFloat(r.NormalizedChange || 0);
+            const prevClose = close - change;
+            
+            return {
+                symbol: symbol,
+                lastPrice: close,
+                priceChangePercent: prevClose !== 0 ? (change / prevClose) * 100 : 0,
+                highPrice: parseFloat(r.NormalizedHigh || 0),
+                lowPrice: parseFloat(r.NormalizedLow || 0),
+                quoteVolume: parseFloat(r.NormalizedVolume || 0),
+                volume: parseFloat(r.NormalizedVolume || 0)
+            };
         }
     },
 

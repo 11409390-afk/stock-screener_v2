@@ -125,7 +125,13 @@ class CryptoSelectorApp {
         }
 
         // Market Board Change (TW Stock specific)
-        // Removed auto-load on change to prevent unwanted API requests
+        if (this.elements.stockType) {
+            this.elements.stockType.addEventListener('change', () => {
+                if (this.currentSource === 'STOCK') {
+                    this.loadMarkets(); // Auto reload when category changes
+                }
+            });
+        }
 
         // Refresh Button - Reset page to default state
         const refreshBtn = document.getElementById('refreshBtn');
