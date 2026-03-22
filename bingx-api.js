@@ -155,7 +155,7 @@ const BingXAPI = {
      */
     async getAll24hrTickers() {
         const data = await this.request('/openApi/swap/v2/quote/ticker');
-        return data.data || [];
+        return (data.data || []).map(t => ({ ...t, industry: 'Crypto' }));
     },
 
     /**

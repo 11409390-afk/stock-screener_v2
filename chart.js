@@ -14,6 +14,7 @@ const ChartManager = {
     isUpdating: false,
     currentSymbol: null,
     currentTimeframe: null,
+    timeZoneMode: 'local', // 'local' or 'utc'
     klineData: null,      // Store kline data for indicator calculations
     api: window.BingXAPI, // Default API
 
@@ -36,6 +37,7 @@ const ChartManager = {
         container: null,
         symbolName: null,
         timeframe: null,
+        timezone: null,
         status: null,
         lastPrice: null,
         priceChange: null,
@@ -57,6 +59,7 @@ const ChartManager = {
             container: document.getElementById('chartContainer'),
             symbolName: document.getElementById('chartSymbolName'),
             timeframe: document.getElementById('chartTimeframe'),
+            timezone: document.getElementById('chartTimezone'),
             status: document.getElementById('chartStatus'),
             lastPrice: document.getElementById('chartLastPrice'),
             priceChange: document.getElementById('chartPriceChange'),
@@ -129,6 +132,18 @@ const ChartManager = {
                 if (activeStrategies.length > 0) this.addIndicatorsForStrategies(activeStrategies);
             });
         }
+
+        if (this.elements.timezone) {
+            this.elements.timezone.addEventListener('change', async (e) => {
+                this.timeZoneMode = e.target.value;
+                
+                this.clearIndicators();
+                await this.loadChartData();
+
+                const activeStrategies = Array.from(document.querySelectorAll('.indicator-toggle input[type="checkbox"]:checked')).map(cb => cb.dataset.indicator);
+                if (activeStrategies.length > 0) this.addIndicatorsForStrategies(activeStrategies);
+            });
+        }
     },
 
     clearIndicators() {
@@ -154,12 +169,15 @@ const ChartManager = {
         this.indicatorPanels = {};
     },
 
+    // Get time offset adjusted for timezone
+    getAdjustedTime(timeMs) {
+        const tzOffset = this.timeZoneMode === 'local' ? (new Date().getTimezoneOffset() * -60) : 0;
+        return Math.floor(timeMs / 1000) + tzOffset;
+    },
+
     // Handle individual indicator toggle
     handleIndicatorToggle(indicatorId, isEnabled) {
         if (!this.klineData || !this.charts || this.charts.length === 0) return;
-
-        const closes = this.klineData.map(k => k.close);
-        const times = this.klineData.map(k => Math.floor(k.time / 1000));
 
         if (isEnabled) {
             // Add the indicator
@@ -229,7 +247,7 @@ const ChartManager = {
         });
 
         const data = this.klineData.map(k => ({
-            time: Math.floor(k.time / 1000),
+            time: this.getAdjustedTime(k.time),
             value: price
         }));
         series.setData(data);
@@ -494,7 +512,7 @@ const ChartManager = {
             this.klineData = klines;
 
             const candleData = klines.map(k => ({
-                time: Math.floor(k.time / 1000),
+                time: this.getAdjustedTime(k.time),
                 open: k.open,
                 high: k.high,
                 low: k.low,
@@ -502,7 +520,7 @@ const ChartManager = {
             }));
 
             const volumeData = klines.map(k => ({
-                time: Math.floor(k.time / 1000),
+                time: this.getAdjustedTime(k.time),
                 value: k.volume,
                 color: k.close >= k.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
             }));
@@ -562,7 +580,7 @@ const ChartManager = {
         if (!this.klineData || this.klineData.length === 0) return;
 
         const closes = this.klineData.map(k => k.close);
-        const times = this.klineData.map(k => Math.floor(k.time / 1000));
+        const times = this.klineData.map(k => this.getAdjustedTime(k.time));
 
         strategies.forEach(strategyId => {
             try {
@@ -869,7 +887,7 @@ const ChartManager = {
                     const latest = klines[klines.length - 1];
 
                     this.candleSeries.update({
-                        time: Math.floor(latest.time / 1000),
+                        time: this.getAdjustedTime(latest.time),
                         open: latest.open,
                         high: latest.high,
                         low: latest.low,
@@ -877,7 +895,7 @@ const ChartManager = {
                     });
 
                     this.volumeSeries.update({
-                        time: Math.floor(latest.time / 1000),
+                        time: this.getAdjustedTime(latest.time),
                         value: latest.volume,
                         color: latest.close >= latest.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
                     });

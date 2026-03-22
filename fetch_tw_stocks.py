@@ -12,6 +12,22 @@ ENDPOINTS = [
 ]
 
 def fetch_data():
+    # Fetch industry mapping dictionary
+    industry_map = {}
+    try:
+        print("Fetching TWSE & TPEx industry mappings...")
+        req_twse = urllib.request.Request('https://openapi.twse.com.tw/v1/opendata/t187ap03_L', headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req_twse, timeout=15) as res:
+            for item in json.loads(res.read().decode('utf-8')):
+                industry_map[item.get('公司代號')] = item.get('產業類別')
+                
+        req_tpex = urllib.request.Request('https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O', headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req_tpex, timeout=15) as res:
+            for item in json.loads(res.read().decode('utf-8')):
+                industry_map[item.get('公司代號')] = item.get('產業類別')
+    except Exception as e:
+        print(f"Notice: Failed to fetch industry mapping: {e}")
+
     all_symbols = []
     
     for ep in ENDPOINTS:
@@ -41,6 +57,7 @@ def fetch_data():
                             "symbol": str(symbol).strip(),
                             "baseAsset": str(name).strip(),
                             "quoteAsset": "TWD",
+                            "industry": industry_map.get(str(symbol).strip(), "未分類 (Unclassified)"),
                             "board": ep["board"],
                             "raw": {
                                 **item, 

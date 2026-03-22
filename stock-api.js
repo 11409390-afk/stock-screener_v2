@@ -123,18 +123,26 @@ const StockAPI = {
             
             // Fallback to local daily data for Warrants/Bonds that Yahoo ignores
             const r = stock.raw;
-            const close = parseFloat(r.NormalizedClose || 0);
-            const change = parseFloat(r.NormalizedChange || 0);
+            
+            // Support both new Normalized keys and old raw keys, stripping commas safely
+            const closeStr = r.NormalizedClose || r.ClosingPrice || r.Close || r.LatestPrice || "0";
+            const changeStr = r.NormalizedChange || r.Change || "0";
+            const highStr = r.NormalizedHigh || r.HighestPrice || r.High || "0";
+            const lowStr = r.NormalizedLow || r.LowestPrice || r.Low || "0";
+            const volStr = r.NormalizedVolume || r.TradeVolume || r.TradingVolume || r.Volume || "0";
+
+            const close = parseFloat(String(closeStr).replace(/,/g, '')) || 0;
+            const change = parseFloat(String(changeStr).replace(/,/g, '')) || 0;
             const prevClose = close - change;
             
             return {
                 symbol: symbol,
                 lastPrice: close,
                 priceChangePercent: prevClose !== 0 ? (change / prevClose) * 100 : 0,
-                highPrice: parseFloat(r.NormalizedHigh || 0),
-                lowPrice: parseFloat(r.NormalizedLow || 0),
-                quoteVolume: parseFloat(r.NormalizedVolume || 0),
-                volume: parseFloat(r.NormalizedVolume || 0)
+                highPrice: parseFloat(String(highStr).replace(/,/g, '')) || 0,
+                lowPrice: parseFloat(String(lowStr).replace(/,/g, '')) || 0,
+                quoteVolume: parseFloat(String(volStr).replace(/,/g, '')) || 0,
+                volume: parseFloat(String(volStr).replace(/,/g, '')) || 0
             };
         }
     },
@@ -144,39 +152,31 @@ const StockAPI = {
             await this.getSymbols();
         }
 
-        // If we have TWSE/TPEx raw data (2000+ stocks), use it for the screener.
-        // Yahoo Finance restricts URL lengths, so we can't request 2000 quotes at once.
-        if (this.cachedSymbols.length > 100 && this.cachedSymbols[0].raw.NormalizedClose) {
-            return this.cachedSymbols.map(stock => {
-                const r = stock.raw;
-                const close = parseFloat(r.NormalizedClose || 0);
-                const change = parseFloat(r.NormalizedChange || 0);
-                const prevClose = close - change;
-                
-                return {
-                    symbol: stock.symbol,
-                    lastPrice: close,
-                    priceChangePercent: prevClose !== 0 ? (change / prevClose) * 100 : 0,
-                    highPrice: parseFloat(r.NormalizedHigh || 0),
-                    lowPrice: parseFloat(r.NormalizedLow || 0),
-                    quoteVolume: parseFloat(r.NormalizedVolume || 0)
-                };
-            });
-        } else {
-            // Fallback: Batch request the Top Stocks from Yahoo
-            const symbolsList = this.cachedSymbols.map(s => s.raw.type === 'TWSE' ? `${s.symbol}.TW` : `${s.symbol}.TWO`).join(',');
-            try {
-                const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
-                const res = await this.request(url);
-                if (!res.quoteResponse || !res.quoteResponse.result) return [];
-                return res.quoteResponse.result.map(quote => ({
-                    symbol: quote.symbol.replace('.TW', '').replace('.TWO', ''),
-                    lastPrice: quote.regularMarketPrice || 0,
-                    priceChangePercent: quote.regularMarketChangePercent || 0,
-                    quoteVolume: quote.regularMarketVolume || 0
-                }));
-            } catch (e) { return []; }
-        }
+        // Rely purely on the local JSON data for the screener to prevent massive Yahoo API URL crashes
+        return this.cachedSymbols.map(stock => {
+            const r = stock.raw;
+            
+            // Support both new Normalized keys and old raw keys, stripping commas safely
+            const closeStr = r.NormalizedClose || r.ClosingPrice || r.Close || r.LatestPrice || "0";
+            const changeStr = r.NormalizedChange || r.Change || "0";
+            const highStr = r.NormalizedHigh || r.HighestPrice || r.High || "0";
+            const lowStr = r.NormalizedLow || r.LowestPrice || r.Low || "0";
+            const volStr = r.NormalizedVolume || r.TradeVolume || r.TradingVolume || r.Volume || "0";
+
+            const close = parseFloat(String(closeStr).replace(/,/g, '')) || 0;
+            const change = parseFloat(String(changeStr).replace(/,/g, '')) || 0;
+            const prevClose = close - change;
+            
+            return {
+                symbol: stock.symbol,
+                industry: stock.industry || '未分類',
+                lastPrice: close,
+                priceChangePercent: prevClose !== 0 ? (change / prevClose) * 100 : 0,
+                highPrice: parseFloat(String(highStr).replace(/,/g, '')) || 0,
+                lowPrice: parseFloat(String(lowStr).replace(/,/g, '')) || 0,
+                quoteVolume: parseFloat(String(volStr).replace(/,/g, '')) || 0
+            };
+        });
     },
 
     /**

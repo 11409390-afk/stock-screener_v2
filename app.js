@@ -672,7 +672,7 @@ class CryptoSelectorApp {
 
                             if (type) {
                                 allSignals.push({
-                                    time: Math.floor(trade.time / 1000),
+                                    time: ChartManager.getAdjustedTime(trade.time),
                                     type: type,
                                     strategy: strategyId
                                 });
@@ -823,6 +823,7 @@ class CryptoSelectorApp {
 
                     results.push({
                         symbol: ticker.symbol,
+                        industry: ticker.industry || 'Crypto',
                         price: parseFloat(ticker.lastPrice || 0),
                         change: parseFloat(ticker.priceChangePercent || 0),
                         volume: parseFloat(ticker.quoteVolume || 0),
@@ -868,6 +869,7 @@ class CryptoSelectorApp {
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td><strong>${this.currentAPI.formatSymbol(result.symbol)}</strong></td>
+                <td><span style="font-size: 11px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">${result.industry}</span></td>
                 <td>$${this.currentAPI.formatPrice(result.price)}</td>
                 <td class="${result.change >= 0 ? 'positive' : 'negative'}">${this.currentAPI.formatPercent(result.change)}</td>
                 <td><strong>${result.score}</strong>/100</td>
@@ -875,6 +877,9 @@ class CryptoSelectorApp {
                 <td>
                     <button class="btn btn-sm" onclick="app.analyzeSymbol('${result.symbol}')">
                         Analyze
+                    </button>
+                    <button class="btn btn-sm btn-chart" style="margin-left:5px; background: #3b82f6; border: none; color:white; cursor:pointer;" onclick="app.openChartForSymbol('${result.symbol}')">
+                        📊 Chart
                     </button>
                 </td>
             `;
@@ -905,6 +910,13 @@ class CryptoSelectorApp {
         document.getElementById('signalsPanel').scrollIntoView({ behavior: 'smooth' });
     }
 
+    async openChartForSymbol(symbol) {
+        this.elements.symbolSelect.value = symbol;
+        this.selectedSymbol = symbol;
+        this.updateAnalyzeButton();
+        await this.openChart();
+    }
+
     // ========== Export ==========
 
     exportResults() {
@@ -923,6 +935,7 @@ class CryptoSelectorApp {
                 const row = {
                     Rank: i + 1,
                     Symbol: this.currentAPI.formatSymbol(r.symbol),
+                    Industry: r.industry,
                     Price: r.price,
                     '24h Change %': r.change.toFixed(2),
                     Score: r.score,
