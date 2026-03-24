@@ -374,6 +374,31 @@ select:focus {
     gap: 16px;
 }
 
+.category-section {
+    grid-column: 1 / -1;
+    margin-bottom: 24px;
+}
+
+.strategy-category-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.strategy-category-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.strategy-category-header .cat-icon {
+    font-size: 1.2rem;
+}
+
 .strategy-card {
     background: var(--bg-secondary);
     border: 2px solid var(--border-color);
@@ -986,9 +1011,9 @@ select:focus {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    width: 100%;
-    max-width: 1400px;
-    height: 80vh;
+    width: 95vw;
+    max-width: 95vw;
+    height: 95vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;

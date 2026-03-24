@@ -14,6 +14,8 @@ class CryptoSelectorApp {
         this.analysisResult = null;  // Store last analysis result
         this.mtfResult = null;       // Store last MTF result
         this.isLoading = false;
+        this.alertHistory = {};      // Prevent alert spam
+        this.autoAnalyzeInterval = null;
 
         // Multi-API Support
         this.currentSource = 'CRYPTO'; // 'CRYPTO' or 'STOCK'
@@ -37,6 +39,7 @@ class CryptoSelectorApp {
     cacheElements() {
         this.elements = {
             // Controls
+            langToggleBtn: document.getElementById('langToggleBtn'),
             marketSource: document.getElementById('marketSource'),
             stockTypeGroup: document.getElementById('stockTypeGroup'),
             stockType: document.getElementById('stockType'),
@@ -56,6 +59,7 @@ class CryptoSelectorApp {
             backtestBtn: document.getElementById('backtestBtn'),
             mtfBtn: document.getElementById('mtfBtn'),
             resonanceToggle: document.getElementById('resonanceToggle'),
+            alertToggle: document.getElementById('alertToggle'),
 
             // Backtest Modal
             backtestModal: document.getElementById('backtestModal'),
@@ -173,10 +177,35 @@ class CryptoSelectorApp {
             });
         }
 
-        // Refresh Button - Reset page to default state
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.resetPage());
+        }
+
+        // Language Toggle
+        if (this.elements.langToggleBtn) {
+            this.elements.langToggleBtn.addEventListener('click', () => this.toggleLanguage());
+        }
+
+        // Alert Toggle
+        if (this.elements.alertToggle) {
+            this.elements.alertToggle.addEventListener('change', (e) => {
+                if (e.target.checked && Notification.permission !== 'granted') {
+                    Notification.requestPermission();
+                }
+                if (e.target.checked) {
+                    // Start an auto-analyze interval every 3 minutes if checked
+                    this.autoAnalyzeInterval = setInterval(() => {
+                        if (this.selectedSymbol && this.selectedStrategies.size > 0 && !this.isLoading) {
+                            this.analyze(true); // silent true
+                        }
+                    }, 180000);
+                    this.showToast('Alerts & Auto-Analysis Enabled (3m interval)', 'success');
+                } else {
+                    clearInterval(this.autoAnalyzeInterval);
+                    this.showToast('Alerts Disabled', 'info');
+                }
+            });
         }
 
         // Symbol search
@@ -237,6 +266,65 @@ class CryptoSelectorApp {
                 }
             });
         });
+    }
+
+    // ========== Language Translation (i18n) ==========
+    toggleLanguage() {
+        if (!window.i18n) return;
+        window.i18n.current = window.i18n.current === 'en' ? 'zh-TW' : 'en';
+        this.translateUI();
+        this.showToast(window.i18n.current === 'en' ? 'Language changed to English' : '語言已切換為繁體中文', 'info');
+    }
+
+    translateUI() {
+        if (!window.i18n) return;
+
+        // 1. Translate static text nodes in the DOM
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        const translatableKeys = Object.keys(window.i18n.ui).concat(Object.keys(window.i18n.categories));
+        
+        // Build reverse map across all dicts
+        const reverseMap = {};
+        if (window.i18n.ui) for (const [en, zh] of Object.entries(window.i18n.ui)) reverseMap[zh] = en;
+        if (window.i18n.categories) for (const [en, zh] of Object.entries(window.i18n.categories)) reverseMap[zh] = en;
+
+        while ((node = walker.nextNode())) {
+            const trimmed = node.nodeValue.trim();
+            if (!trimmed || Number.isFinite(Number(trimmed.replace(/,/g, '')))) continue;
+
+            // Initialize original key on the node if it doesn't exist
+            if (!node._i18nKey) {
+                if (translatableKeys.includes(trimmed)) {
+                    node._i18nKey = trimmed;
+                } else if (reverseMap[trimmed]) {
+                    node._i18nKey = reverseMap[trimmed];
+                }
+            }
+
+            if (node._i18nKey) {
+                const translation = window.i18n.translate(node._i18nKey, window.i18n.categories[node._i18nKey] ? 'categories' : 'ui');
+                node.nodeValue = node.nodeValue.replace(trimmed, translation);
+            }
+        }
+
+        // 2. Re-render dynamic sections that rely on JS strings
+        this.renderStrategies();
+        if (this.analysisResult) {
+            this.renderSignals(this.analysisResult.strategies);
+            this.renderScore(this.analysisResult.overall);
+        }
+        
+        // Also re-render intelligence if active
+        if (this.klineData && window.MarketIntelligence) {
+            try {
+                const useResonance = this.elements.resonanceToggle ? this.elements.resonanceToggle.checked : true;
+                const results = Strategies.analyzeAll(this.klineData, Array.from(this.selectedStrategies));
+                const allDiyResults = window.DIYAnalyzers ? window.DIYAnalyzers.analyzeAll(this.klineData) : [];
+                const intel = window.MarketIntelligence.analyze(results, allDiyResults, this.klineData);
+                this.renderIntelligence(intel);
+            } catch (e) {}
+        }
     }
 
     // Open chart modal
@@ -451,63 +539,124 @@ class CryptoSelectorApp {
     renderStrategies() {
         this.elements.strategiesGrid.innerHTML = '';
 
+        const typeMapping = {
+            trend: { label: 'Trend Following', icon: '📈' },
+            momentum: { label: 'Momentum', icon: '⚡' },
+            volatility: { label: 'Volatility', icon: '🌪️' },
+            volume: { label: 'Volume', icon: '📊' },
+            price_action: { label: 'Price Action', icon: '🕯️' },
+            statistical: { label: 'Statistical', icon: '📐' },
+            mean_reversion: { label: 'Mean Reversion', icon: '🔄' },
+            multi_factor: { label: 'Multi-Factor', icon: '🧩' },
+            multi_timeframe: { label: 'Multi-Timeframe', icon: '⏱️' },
+            macro_trend: { label: 'Macro Trend', icon: '🌍' },
+            arbitrage: { label: 'Arbitrage', icon: '💰' },
+            diy_trend: { label: 'DIY Trend', icon: '🟢' },
+            diy_momentum: { label: 'DIY Momentum', icon: '🟡' },
+            diy_volatility: { label: 'DIY Volatility', icon: '🔴' },
+            diy_volume: { label: 'DIY Volume', icon: '🔵' },
+            diy_reversal: { label: 'DIY Reversal', icon: '🟣' }
+        };
+
+        // Group strategies by type
+        const groupedStrategies = {};
         Strategies.definitions.forEach(strategy => {
-            const card = document.createElement('div');
-            card.className = 'strategy-card';
-            card.dataset.id = strategy.id;
+            const type = strategy.type || 'other';
+            if (!groupedStrategies[type]) groupedStrategies[type] = [];
+            groupedStrategies[type].push(strategy);
+        });
 
-            // CSS class matches the type directly (momentum, trend, volatility, diy_trend, diy_momentum, etc.)
-            const typeClass = strategy.type || '';
+        // Expected rendering order
+        const groupOrder = [
+            'diy_trend', 'diy_momentum', 'diy_volatility', 'diy_volume', 'diy_reversal',
+            'trend', 'momentum', 'volatility', 'volume', 'mean_reversion', 'price_action',
+            'statistical', 'multi_factor', 'macro_trend', 'multi_timeframe', 'arbitrage', 'other'
+        ];
 
-            // Build parameter sliders HTML
-            let paramsHtml = '';
-            if (strategy.paramConfig) {
-                const currentParams = Strategies.getParams(strategy.id);
-                paramsHtml = '<div class="strategy-params">';
-                for (const [key, config] of Object.entries(strategy.paramConfig)) {
-                    const value = currentParams[key] ?? config.default;
-                    paramsHtml += `
-                        <div class="param-row">
-                            <span class="param-label">${config.label}</span>
-                            <div class="param-slider-container">
-                                <input type="range" 
-                                    class="param-slider" 
-                                    data-strategy="${strategy.id}" 
-                                    data-param="${key}"
-                                    min="${config.min}" 
-                                    max="${config.max}" 
-                                    step="${config.step}" 
-                                    value="${value}">
-                                <span class="param-value">${value}</span>
-                            </div>
-                        </div>
-                    `;
-                }
-                paramsHtml += `<button class="param-reset-btn" data-strategy="${strategy.id}">Reset to Default</button>`;
-                paramsHtml += '</div>';
+        groupOrder.forEach(type => {
+            if (!groupedStrategies[type] || groupedStrategies[type].length === 0) return;
+
+            let catLabel = typeMapping[type] ? typeMapping[type].label : type.toUpperCase();
+            if (window.i18n && window.i18n.current === 'zh-TW') {
+                catLabel = window.i18n.translate(typeMapping[type] ? typeMapping[type].label : catLabel, 'categories');
             }
+            const catIcon = typeMapping[type] ? typeMapping[type].icon : '📌';
+            
+            // Create a wrapper for the entire category
+            const categorySection = document.createElement('div');
+            categorySection.className = 'category-section';
 
-            card.innerHTML = `
-                <div class="strategy-header">
-                    <span class="strategy-name">${strategy.name}</span>
-                    <span class="strategy-type ${typeClass}">${strategy.type.replace('_', ' ')}</span>
-                </div>
-                <p class="strategy-description">${strategy.description}</p>
-                <div class="strategy-checkbox"></div>
-                ${strategy.paramConfig ? '<button class="strategy-settings-btn" title="Adjust Parameters">⚙️</button>' : ''}
-                ${paramsHtml}
-            `;
+            // Render section header
+            const header = document.createElement('div');
+            header.className = 'strategy-category-header';
+            header.innerHTML = `<span class="cat-icon">${catIcon}</span> <h3>${catLabel}</h3>`;
+            categorySection.appendChild(header);
 
-            // Toggle selection on card click (but not on settings button or sliders)
-            card.addEventListener('click', (e) => {
-                if (!e.target.closest('.strategy-settings-btn') &&
-                    !e.target.closest('.strategy-params') &&
-                    !e.target.closest('.param-reset-btn')) {
-                    this.toggleStrategy(strategy.id, card);
+            // Create a specific grid for this category's cards
+            const categoryGrid = document.createElement('div');
+            categoryGrid.className = 'strategies-grid';
+
+            // Render cards for this group
+            groupedStrategies[type].forEach(strategy => {
+                const card = document.createElement('div');
+                card.className = 'strategy-card';
+                card.dataset.id = strategy.id;
+
+                const typeClass = strategy.type || '';
+
+                let paramsHtml = '';
+                if (strategy.paramConfig) {
+                    const currentParams = Strategies.getParams(strategy.id);
+                    paramsHtml = '<div class="strategy-params">';
+                    for (const [key, config] of Object.entries(strategy.paramConfig)) {
+                        const value = currentParams[key] ?? config.default;
+                        paramsHtml += `
+                            <div class="param-row">
+                                <span class="param-label">${config.label}</span>
+                                <div class="param-slider-container">
+                                    <input type="range" 
+                                        class="param-slider" 
+                                        data-strategy="${strategy.id}" 
+                                        data-param="${key}"
+                                        min="${config.min}" 
+                                        max="${config.max}" 
+                                        step="${config.step}" 
+                                        value="${value}">
+                                    <span class="param-value">${value}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    paramsHtml += `<button class="param-reset-btn" data-strategy="${strategy.id}">Reset to Default</button>`;
+                    paramsHtml += '</div>';
                 }
-            });
 
-            this.elements.strategiesGrid.appendChild(card);
+                const transName = (window.i18n && window.i18n.current === 'zh-TW' && window.i18n.strategies[strategy.id]) ? window.i18n.strategies[strategy.id].name : strategy.name;
+                const transDesc = (window.i18n && window.i18n.current === 'zh-TW' && window.i18n.strategies[strategy.id]) ? window.i18n.strategies[strategy.id].desc : strategy.description;
+
+                card.innerHTML = `
+                    <div class="strategy-header">
+                        <span class="strategy-name">${transName}</span>
+                        <span class="strategy-type ${typeClass}">${strategy.type.replace('_', ' ')}</span>
+                    </div>
+                    <p class="strategy-description">${transDesc}</p>
+                    <div class="strategy-checkbox"></div>
+                    ${strategy.paramConfig ? '<button class="strategy-settings-btn" title="' + (window.i18n && window.i18n.current === 'zh-TW' ? '調整參數' : 'Adjust Parameters') + '">⚙️</button>' : ''}
+                    ${paramsHtml}
+                `;
+
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('.strategy-settings-btn') &&
+                        !e.target.closest('.strategy-params') &&
+                        !e.target.closest('.param-reset-btn')) {
+                        this.toggleStrategy(strategy.id, card);
+                    }
+                });
+
+                categoryGrid.appendChild(card);
+            });
+            categorySection.appendChild(categoryGrid);
+            this.elements.strategiesGrid.appendChild(categorySection);
         });
 
         // Bind settings button events
@@ -675,13 +824,45 @@ class CryptoSelectorApp {
         }
     }
 
-    async analyze() {
+    checkAndFireAlert(intel) {
+        if (!intel || !intel.recommendation) return;
+        
+        const timeframe = this.elements.timeframe.value;
+        const key = `${this.selectedSymbol}_${timeframe}`;
+        const lastAlertTime = this.alertHistory[key] || 0;
+        const now = Date.now();
+        
+        // Prevent alert spam: Don't alert the same symbol/timeframe more than once every 5 minutes
+        if (now - lastAlertTime < 300000) return;
+
+        // Check if Intel outputs a Strong Buy bias (i.e. Long > 80% or Recommendation includes favorable)
+        if (intel.longPct >= 80 || intel.recommendation.action.includes('LONG')) {
+            this.alertHistory[key] = now;
+            
+            // 1. Play Sound (Catch error in case user hasn't interacted with page yet)
+            try {
+                // High frequency generic digital chime
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play();
+            } catch (e) { console.warn("Audio play blocked", e); }
+            
+            // 2. Browser native notification
+            if (Notification.permission === 'granted') {
+                new Notification(`Strong Buy Signal: ${this.selectedSymbol} (${timeframe})`, {
+                    body: `Alpha Intel: ${intel.longPct}% Long Probability. \n${intel.state.label}`,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/2950/2950552.png'
+                });
+            }
+        }
+    }
+
+    async analyze(isSilent = false) {
         if (!this.selectedSymbol || this.selectedStrategies.size === 0) {
-            this.showToast('Please select a symbol and at least one strategy', 'error');
+            if (!isSilent) this.showToast('Please select a symbol and at least one strategy', 'error');
             return;
         }
 
-        this.showLoading('Fetching market data...');
+        if (!isSilent) this.showLoading('Fetching market data...');
 
         try {
             // Fetch kline data
@@ -695,7 +876,7 @@ class CryptoSelectorApp {
             // Fetch ticker data
             this.tickerData = await this.currentAPI.get24hrTicker(this.selectedSymbol);
 
-            this.showLoading('Running strategy analysis...');
+            if (!isSilent) this.showLoading('Running strategy analysis...');
 
             // Run analysis
             const useResonance = this.elements.resonanceToggle ? this.elements.resonanceToggle.checked : true;
@@ -725,6 +906,10 @@ class CryptoSelectorApp {
                 if (window.MarketIntelligence) {
                     const intel = window.MarketIntelligence.analyze(results, allDiyResults, this.klineData);
                     this.renderIntelligence(intel);
+                    // Check and fire alerts
+                    if (this.elements.alertToggle && this.elements.alertToggle.checked) {
+                        this.checkAndFireAlert(intel);
+                    }
                 }
             } catch(intelErr) {
                 console.warn('Intelligence engine error:', intelErr);
@@ -955,19 +1140,25 @@ class CryptoSelectorApp {
         let buyCount = 0, sellCount = 0, neutralCount = 0;
         results.forEach(result => {
             const strategy = Strategies.definitions.find(s => s.id === result.strategyId);
-            const displayName = strategy?.name || result.name || result.strategyId;
+            const rawName = strategy?.name || result.name || result.strategyId;
+            const displayName = window.i18n ? window.i18n.translate(rawName, 'strategies') : rawName;
+            
             const card = document.createElement('div');
             card.className = `signal-card ${result.signal}`;
+            
+            const translateStr = (s) => (window.i18n && window.i18n.current === 'zh-TW') ? window.i18n.translateDynamic(s) : s;
+            const uiTranslate = (s) => window.i18n ? window.i18n.translate(s, 'ui') : s;
+
             card.innerHTML = `
                 <div class="signal-header">
                     <span class="signal-name">${displayName}</span>
-                    <span class="signal-badge ${result.signal}">${result.signal.toUpperCase()}</span>
+                    <span class="signal-badge ${result.signal}">${uiTranslate(result.signal.toUpperCase() === 'BUY' ? 'Buy' : result.signal.toUpperCase() === 'SELL' ? 'Sell' : 'Neutral')}</span>
                 </div>
                 <div class="signal-details">
-                    <p>${result.details}</p>
-                    <p>Strength: <span class="signal-value">${(result.strength * 100).toFixed(0)}%</span></p>
-                    ${result.entryCondition ? `<p style="margin-top:5px; font-size:0.8rem; color:${result.signal==='buy'?'#86efac':result.signal==='sell'?'#fca5a5':'#a0a0b0'}; border-top:1px solid rgba(255,255,255,0.06); padding-top:5px;">▶ ${result.entryCondition}</p>` : ''}
-                    ${result.useCase ? `<p style="margin-top:5px; font-size:0.75rem; color:#7e8aae;">💡 ${result.useCase}</p>` : ''}
+                    <p>${translateStr(result.details)}</p>
+                    <p>${uiTranslate('Strength:')} <span class="signal-value">${(result.strength * 100).toFixed(0)}%</span></p>
+                    ${result.entryCondition ? `<p style="margin-top:5px; font-size:0.8rem; color:${result.signal==='buy'?'#86efac':result.signal==='sell'?'#fca5a5':'#a0a0b0'}; border-top:1px solid rgba(255,255,255,0.06); padding-top:5px;">▶ ${translateStr(result.entryCondition)}</p>` : ''}
+                    ${result.useCase ? `<p style="margin-top:5px; font-size:0.75rem; color:#7e8aae;">💡 ${translateStr(result.useCase)}</p>` : ''}
                 </div>
             `;
             this.elements.signalsGrid.appendChild(card);
@@ -975,10 +1166,11 @@ class CryptoSelectorApp {
             else if (result.signal === 'sell') sellCount++;
             else neutralCount++;
         });
+        const uiTranslate = (s) => window.i18n ? window.i18n.translate(s, 'ui') : s;
         this.elements.signalSummary.innerHTML = `
-            <span class="buy-count">${buyCount} Buy</span>
-            <span class="sell-count">${sellCount} Sell</span>
-            <span class="neutral-count">${neutralCount} Neutral</span>
+            <span class="buy-count">${buyCount} ${uiTranslate('Buy')}</span>
+            <span class="sell-count">${sellCount} ${uiTranslate('Sell')}</span>
+            <span class="neutral-count">${neutralCount} ${uiTranslate('Neutral')}</span>
         `;
     }
 
@@ -1032,6 +1224,8 @@ class CryptoSelectorApp {
         const panel = document.getElementById('intelligencePanel');
         if (!panel || !intel) return;
 
+        const dynTranslate = (s) => (window.i18n && window.i18n.current === 'zh-TW') ? window.i18n.translateDynamic(s) : s;
+
         document.getElementById('longPct').textContent  = intel.longPct  + '%';
         document.getElementById('shortPct').textContent = intel.shortPct + '%';
         document.getElementById('longBar').style.width  = intel.longPct  + '%';
@@ -1042,11 +1236,15 @@ class CryptoSelectorApp {
         const exLevel = document.getElementById('exhaustionLevel');
         if (exScore) exScore.textContent = intel.exhaustion.score + '%';
         if (exBar)   exBar.style.width   = intel.exhaustion.score + '%';
-        if (exLevel) exLevel.textContent = `${intel.exhaustion.level} ${intel.exhaustion.dir !== 'neutral' ? '(to the ' + intel.exhaustion.dir + ')' : ''} — from: ${intel.exhaustion.contributors.join(', ') || 'none'}`;
+        
+        let exDirText = intel.exhaustion.dir !== 'neutral' ? '(to the ' + intel.exhaustion.dir + ')' : '';
+        let exContHtml = intel.exhaustion.contributors.join(', ') || 'none';
+        let fullExhaustionStr = `${intel.exhaustion.level} ${exDirText} — from: ${exContHtml}`;
+        if (exLevel) exLevel.textContent = dynTranslate(fullExhaustionStr);
 
         const stateEl = document.getElementById('intelligenceState');
         if (stateEl) {
-            stateEl.textContent = intel.state.label;
+            stateEl.textContent = dynTranslate(intel.state.label);
             stateEl.style.color = intel.state.color;
             stateEl.style.background = intel.state.color + '22';
         }
@@ -1054,8 +1252,8 @@ class CryptoSelectorApp {
         const actionEl  = document.getElementById('intelAction');
         const msgEl     = document.getElementById('intelMessage');
         const recEl     = document.getElementById('intelRecommendation');
-        if (actionEl) { actionEl.textContent = intel.recommendation.action; actionEl.style.color = intel.recommendation.color; }
-        if (msgEl)    msgEl.textContent = intel.recommendation.message;
+        if (actionEl) { actionEl.textContent = dynTranslate(intel.recommendation.action); actionEl.style.color = intel.recommendation.color; }
+        if (msgEl)    msgEl.textContent = dynTranslate(intel.recommendation.message);
         if (recEl)    recEl.style.borderColor = intel.recommendation.color + '55';
 
         const t = document.getElementById('intelTotal'), b = document.getElementById('intelBuy'),
