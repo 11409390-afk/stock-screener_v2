@@ -2,6 +2,7 @@ import http.server
 import socketserver
 import urllib.request
 import urllib.parse
+import urllib.error
 import sys
 import ssl
 
@@ -37,6 +38,8 @@ class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Create request with browser like headers
             req = urllib.request.Request(target_url)
             req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            req.add_header('Accept', 'text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+            req.add_header('Accept-Language', 'en-US,en;q=0.5')
             
             with urllib.request.urlopen(req, context=ctx) as response:
                 content = response.read()
@@ -53,17 +56,28 @@ class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(content)
                 
         except urllib.error.HTTPError as e:
-            self.send_error(e.code, e.reason)
+            print(f"Proxy HTTP Error {e.code}: {e.reason} for {target_url}")
+            self.send_response(e.code)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            self.end_headers()
+            try:
+                self.wfile.write(e.read())
+            except:
+                pass
         except Exception as e:
             print(f"Proxy error: {e}")
-            self.send_error(500, str(e))
+            self.send_response(500)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(str(e).encode('utf-8'))
 
     # Handle OPTIONS for CORS preflight
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
 
 Handler = ProxyHTTPRequestHandler

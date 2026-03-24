@@ -11,10 +11,11 @@ const StockAPI = {
 
     // CORS Proxies for Yahoo Finance
     CORS_PROXIES: [
+        'http://localhost:8087/proxy?url=',
         'https://api.allorigins.win/raw?url=',
-        'https://corsproxy.io/?',
         'https://api.codetabs.com/v1/proxy?quest=',
-        'https://thingproxy.freeboard.io/fetch/'
+        'https://corsproxy.io/?',
+        'https://proxy.cors.sh/'
     ],
     currentProxyIndex: 0,
 
@@ -44,7 +45,7 @@ const StockAPI = {
 
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
                 const response = await fetch(proxyUrl, { cache: 'no-store', signal: controller.signal });
                 clearTimeout(timeoutId);
@@ -52,9 +53,11 @@ const StockAPI = {
                 if (response.ok) {
                     this.currentProxyIndex = proxyIndex; // Save the working proxy
                     return await response.json();
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
                 }
             } catch (error) {
-                console.warn(`Proxy ${proxyIndex + 1} failed for Stock API.`);
+                console.warn(`Proxy ${proxyIndex + 1} failed for Stock API:`, error.message);
             }
         }
 
@@ -208,7 +211,8 @@ const StockAPI = {
         else if (yInterval === '1mo') range = '10y';
 
         try {
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${yInterval}&range=${range}`;
+            const t = Date.now();
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${yInterval}&range=${range}&_t=${t}`;
             const res = await this.request(url);
 
             if (!res.chart || !res.chart.result || res.chart.result.length === 0) {

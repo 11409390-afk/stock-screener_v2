@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Crypto Selector - Analyze cryptocurrencies with 13 proven trading strategies using BingX API">
-    <title>Crypto Selector | Trading Strategy Analyzer</title>
+        content="Assets Selector - Analyze assets with 13 proven trading strategies using BingX API">
+    <title>Assets Selector | Trading Strategy Analyzer</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -197,6 +197,7 @@
                 <div class="score-panel glass-card" id="scorePanel">
                     <div class="panel-header">
                         <h2>Overall Score</h2>
+                        <button id="inlineMtfBtn" class="btn btn-sm" disabled style="background: #8b5cf6; border: none; padding: 4px 8px; color: white; cursor: pointer; border-radius: 4px;">🔄 Refresh MTF</button>
                     </div>
                     <div class="score-display">
                         <div class="score-gauge">
@@ -214,6 +215,12 @@
                         <div class="recommendation" id="recommendation">
                             <span class="rec-icon">💡</span>
                             <p>Run analysis to see recommendation</p>
+                        </div>
+                    </div>
+                    <div id="inlineMtfContainer" style="display: none; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                        <h3 style="font-size: 1rem; margin-bottom: 10px; text-align: center; color: #a0a0b0;">MTF Analysis</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="results-table" id="inlineMtfTable" style="width: 100%; font-size: 0.8rem; text-align: center;"></table>
                         </div>
                     </div>
                 </div>

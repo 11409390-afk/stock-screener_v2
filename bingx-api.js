@@ -10,10 +10,11 @@ const BingXAPI = {
 
     // CORS Proxies for static web hosting
     CORS_PROXIES: [
+        'http://localhost:8087/proxy?url=',
+        'https://api.allorigins.win/raw?url=',
         'https://api.codetabs.com/v1/proxy?quest=',
-        'https://thingproxy.freeboard.io/fetch/',
         'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url='
+        'https://proxy.cors.sh/'
     ],
     currentProxyIndex: 0,
 
@@ -76,7 +77,7 @@ const BingXAPI = {
                 console.log(`Trying proxy ${proxyIndex + 1}/${this.CORS_PROXIES.length}...`);
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
                 const response = await fetch(proxyUrl, {
                     method: 'GET',

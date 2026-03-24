@@ -72,6 +72,11 @@ class CryptoSelectorApp {
             closeMtfBtn: document.getElementById('closeMtfBtn'),
             mtfTable: document.getElementById('mtfTable'),
 
+            // Inline MTF
+            inlineMtfBtn: document.getElementById('inlineMtfBtn'),
+            inlineMtfContainer: document.getElementById('inlineMtfContainer'),
+            inlineMtfTable: document.getElementById('inlineMtfTable'),
+
             // Info Modal
             infoBtn: document.getElementById('infoBtn'),
             infoModal: document.getElementById('infoModal'),
@@ -203,7 +208,10 @@ class CryptoSelectorApp {
 
         // Analysis
         this.elements.analyzeBtn.addEventListener('click', () => this.analyze());
-        this.elements.mtfBtn.addEventListener('click', () => this.mtfAnalyze());
+        this.elements.mtfBtn.addEventListener('click', () => this.mtfAnalyze(true));
+        if (this.elements.inlineMtfBtn) {
+            this.elements.inlineMtfBtn.addEventListener('click', () => this.mtfAnalyze(false));
+        }
         this.elements.viewChartBtn.addEventListener('click', () => this.openChart());
         this.elements.screenAllBtn.addEventListener('click', () => this.screenAll());
         this.elements.exportBtn.addEventListener('click', () => this.exportResults());
@@ -334,6 +342,11 @@ class CryptoSelectorApp {
 
         // Clear chart
         ChartManager.clearIndicators();
+
+        if (this.elements.inlineMtfContainer) {
+            this.elements.inlineMtfContainer.style.display = 'none';
+            this.elements.inlineMtfTable.innerHTML = '';
+        }
 
         // Update button states
         this.updateAnalyzeButton();
@@ -575,6 +588,9 @@ class CryptoSelectorApp {
         if (this.elements.mtfBtn) {
             this.elements.mtfBtn.disabled = !(hasSymbol && hasStrategies);
         }
+        if (this.elements.inlineMtfBtn) {
+            this.elements.inlineMtfBtn.disabled = !(hasSymbol && hasStrategies);
+        }
         if (this.elements.backtestBtn) {
             this.elements.backtestBtn.disabled = !(hasSymbol && hasStrategies);
         }
@@ -731,6 +747,9 @@ class CryptoSelectorApp {
             this.currentSignals = allSignals; // Store for chart reopening
             ChartManager.addSignalMarkers(allSignals);
 
+            // Automatically run MTF Analysis to populate the Overall Score section seamlessly
+            await this.mtfAnalyze(false);
+
             this.showToast('Analysis complete!', 'success');
 
         } catch (error) {
@@ -741,7 +760,7 @@ class CryptoSelectorApp {
         this.hideLoading();
     }
 
-    async mtfAnalyze() {
+    async mtfAnalyze(showModal = true) {
         if (!this.selectedSymbol || this.selectedStrategies.size === 0) {
             this.showToast('Please select a symbol and at least one strategy', 'error');
             return;
@@ -750,7 +769,9 @@ class CryptoSelectorApp {
         this.showLoading('Running Multi-Timeframe Analysis...');
         
         try {
-            const timeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1M'];
+            const timeframes = this.currentSource === 'STOCK' 
+                ? ['1d', '1w', '1M'] 
+                : ['15m', '1h', '4h', '1d'];
             const strategies = Array.from(this.selectedStrategies);
             const useResonance = this.elements.resonanceToggle ? this.elements.resonanceToggle.checked : true;
             
@@ -804,6 +825,10 @@ class CryptoSelectorApp {
             tbodyHtml += '</tbody>';
 
             this.elements.mtfTable.innerHTML = theadHtml + tbodyHtml;
+            if (this.elements.inlineMtfTable) {
+                this.elements.inlineMtfTable.innerHTML = theadHtml + tbodyHtml;
+                this.elements.inlineMtfContainer.style.display = 'block';
+            }
             this.elements.mtfTitle.textContent = `${this.currentAPI.formatSymbol(this.selectedSymbol)} MTF Analysis`;
             
             // Store for export
@@ -816,7 +841,9 @@ class CryptoSelectorApp {
             };
             this.elements.exportBtn.disabled = false;
             
-            this.elements.mtfModal.classList.add('active');
+            if (showModal) {
+                this.elements.mtfModal.classList.add('active');
+            }
 
         } catch (error) {
             this.showToast('MTF Analysis failed: ' + error.message, 'error');
@@ -1091,6 +1118,9 @@ class CryptoSelectorApp {
                     <button class="btn btn-sm btn-chart" style="margin-left:5px; background: #3b82f6; border: none; color:white; cursor:pointer;" onclick="app.openChartForSymbol('${result.symbol}')">
                         📊 Chart
                     </button>
+                    <button class="btn btn-sm btn-mtf" style="margin-left:5px; background: #8b5cf6; border: none; color:white; cursor:pointer;" onclick="app.mtfAnalyzeSymbol('${result.symbol}')">
+                        ⏱️ MTF
+                    </button>
                 </td>
             `;
             this.elements.screeningTableBody.appendChild(row);
@@ -1114,6 +1144,8 @@ class CryptoSelectorApp {
     async analyzeSymbol(symbol) {
         this.elements.symbolSelect.value = symbol;
         this.selectedSymbol = symbol;
+        this.elements.symbolSearch.value = this.currentAPI.formatSymbol(symbol);
+        this.updateAnalyzeButton();
         await this.analyze();
 
         // Scroll to results
@@ -1125,6 +1157,14 @@ class CryptoSelectorApp {
         this.selectedSymbol = symbol;
         this.updateAnalyzeButton();
         await this.openChart();
+    }
+
+    async mtfAnalyzeSymbol(symbol) {
+        this.elements.symbolSelect.value = symbol;
+        this.selectedSymbol = symbol;
+        this.elements.symbolSearch.value = this.currentAPI.formatSymbol(symbol);
+        this.updateAnalyzeButton();
+        await this.mtfAnalyze(true);
     }
 
     // ========== Export ==========

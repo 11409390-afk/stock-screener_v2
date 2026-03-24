@@ -301,13 +301,21 @@ const ChartManager = {
         
         this.updateStatus('connecting');
 
-        // Create chart if not exists
-        if (!this.chart) {
-            this.createChart();
-        } else {
-            // Clear existing indicators
-            this.clearIndicators();
+        // COMPLETE TEARDOWN OF CHART TO PREVENT Y-AXIS GHOST SCALING
+        if (this.charts && this.charts.length > 0) {
+            this.charts.forEach(c => {
+                try { c.remove(); } catch(e) {}
+            });
         }
+        this.chart = null;
+        this.volumeChart = null;
+        this.candleSeries = null;
+        this.volumeSeries = null;
+        this.charts = [];
+        this.indicatorPanels = {};
+        this.indicatorSeries = {};
+
+        this.createChart();
 
         // Load initial data
         await this.loadChartData();
@@ -341,6 +349,12 @@ const ChartManager = {
         mainChartDiv.style.flex = '1';
         mainChartDiv.style.position = 'relative';
         mainChartDiv.style.minHeight = '300px';
+        
+        // Main Chart Legend
+        const mainLegendDiv = document.createElement('div');
+        mainLegendDiv.style.cssText = "position:absolute; top:10px; left:10px; z-index:10; font-size:12px; display:flex; gap:10px; flex-wrap:wrap; pointer-events:none;";
+        mainChartDiv.appendChild(mainLegendDiv);
+        
         this.elements.container.appendChild(mainChartDiv);
 
         const chartOptions = {
@@ -366,6 +380,8 @@ const ChartManager = {
         };
 
         this.chart = LightweightCharts.createChart(mainChartDiv, chartOptions);
+        this.chart.legendDiv = mainLegendDiv;
+        this.chart.legendItems = [];
         this.charts.push(this.chart);
 
         this.candleSeries = this.chart.addCandlestickSeries({
@@ -378,7 +394,7 @@ const ChartManager = {
         });
 
         // CREATE SEPARATE VOLUME PANEL
-        const { chart: volChart, panel: volPanel } = this.createSubChart('Volume', '100px');
+        const { chart: volChart, panel: volPanel } = this.createSubChart('Volume', '120px');
         this.volumeChart = volChart;
         this.volumePanel = volPanel;
 
@@ -386,6 +402,7 @@ const ChartManager = {
             color: 'rgba(99, 102, 241, 0.5)',
             priceFormat: { type: 'volume' }
         });
+        this.volumeChart.legendItems = [{ series: this.volumeSeries, title: 'Vol', color: '#a0a0b0', isVolume: true }];
 
         // Setup synchronization
         this.setupChartSync();
@@ -397,7 +414,7 @@ const ChartManager = {
         if (this.charts && this.elements.container) {
             this.charts.forEach(chart => {
                 const container = chart.chartElement().parentElement;
-                if (container && container.clientWidth > 0) {
+                if (container && container.clientWidth > 0 && container.clientHeight > 0) {
                     chart.applyOptions({
                         width: container.clientWidth,
                         height: container.clientHeight
@@ -441,6 +458,9 @@ const ChartManager = {
         const panel = document.createElement('div');
         panel.className = 'indicator-panel';
         panel.style.position = 'relative';
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
+        panel.style.borderTop = '1px solid rgba(255, 255, 255, 0.1)';
         
         if (customHeight) {
             panel.style.flex = `0 0 ${customHeight}`;
@@ -453,18 +473,60 @@ const ChartManager = {
         // Add label/controls
         const labelDiv = document.createElement('div');
         labelDiv.className = 'chart-controls';
-        labelDiv.style.position = 'absolute';
-        labelDiv.style.top = '5px';
-        labelDiv.style.left = '5px';
+        labelDiv.style.padding = '4px 10px';
+        labelDiv.style.display = 'flex';
+        labelDiv.style.alignItems = 'center';
         labelDiv.style.zIndex = '10';
-        labelDiv.innerHTML = `<span style="font-size:10px; color:#666; background:#111; padding:2px 4px; border-radius:4px; z-index: 10;">${label}</span>`;
+        
+        const toggleBtn = document.createElement('button');
+        toggleBtn.innerHTML = '−';
+        toggleBtn.style.cssText = "background:transparent; border:none; color:#888; cursor:pointer; font-size:16px; margin-right:8px; line-height:1; padding:0; width:16px; text-align:center;";
+
+        const titleSpan = document.createElement('span');
+        titleSpan.style.cssText = "font-size:11px; color:#a0a0b0; font-weight:bold;";
+        titleSpan.textContent = label;
+
+        const legendDiv = document.createElement('div');
+        legendDiv.style.cssText = "font-size:11px; display:flex; gap:10px; margin-left:15px;";
+
+        labelDiv.appendChild(toggleBtn);
+        labelDiv.appendChild(titleSpan);
+        labelDiv.appendChild(legendDiv);
+        
+        const chartWrapper = document.createElement('div');
+        chartWrapper.style.flex = '1';
+        chartWrapper.style.position = 'relative';
+        chartWrapper.style.minHeight = '0';
+
+        let isMinimized = false;
+        toggleBtn.onclick = () => {
+            isMinimized = !isMinimized;
+            if (isMinimized) {
+                chartWrapper.style.display = 'none';
+                panel.dataset.originalFlex = panel.style.flex;
+                panel.dataset.originalHeight = panel.style.height;
+                panel.style.flex = 'none';
+                panel.style.minHeight = '0';
+                panel.style.height = 'auto'; 
+                toggleBtn.innerHTML = '+';
+            } else {
+                chartWrapper.style.display = 'block';
+                panel.style.flex = panel.dataset.originalFlex || '1';
+                panel.style.minHeight = '150px';
+                panel.style.height = panel.dataset.originalHeight || '';
+                toggleBtn.innerHTML = '−';
+            }
+            setTimeout(() => this.handleResize(), 10);
+        };
+
         panel.appendChild(labelDiv);
+        panel.appendChild(chartWrapper);
 
         this.elements.container.appendChild(panel);
 
         const chartOptions = {
-            width: panel.clientWidth,
-            height: panel.clientHeight,
+            width: chartWrapper.clientWidth,
+            height: chartWrapper.clientHeight,
             layout: {
                 background: { type: 'solid', color: '#0a0a0f' },
                 textColor: '#a0a0b0'
@@ -481,7 +543,9 @@ const ChartManager = {
             timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true, secondsVisible: false },
         };
 
-        const subChart = LightweightCharts.createChart(panel, chartOptions);
+        const subChart = LightweightCharts.createChart(chartWrapper, chartOptions);
+        subChart.legendDiv = legendDiv;
+        subChart.legendItems = [];
         this.charts.push(subChart);
         this.setupChartSync();
 
@@ -509,31 +573,58 @@ const ChartManager = {
                 return;
             }
 
-            this.klineData = klines;
+            // CLEAN, SORT, AND DEDUPLICATE DATA (Crucial for Lightweight Charts to prevent blank screens)
+            const validKlines = klines.filter(k => !isNaN(k.time) && !isNaN(k.close));
+            validKlines.sort((a, b) => a.time - b.time);
 
-            const candleData = klines.map(k => ({
-                time: this.getAdjustedTime(k.time),
+            const uniqueKlines = [];
+            const seenTimes = new Set();
+            for (const k of validKlines) {
+                const adjTime = this.getAdjustedTime(k.time);
+                if (!seenTimes.has(adjTime)) {
+                    seenTimes.add(adjTime);
+                    uniqueKlines.push({ ...k, adjTime });
+                }
+            }
+
+            this.klineData = uniqueKlines;
+
+            const candleData = uniqueKlines.map(k => ({
+                time: k.adjTime,
                 open: k.open,
                 high: k.high,
                 low: k.low,
                 close: k.close
             }));
 
-            const volumeData = klines.map(k => ({
-                time: this.getAdjustedTime(k.time),
+            const volumeData = uniqueKlines.map(k => ({
+                time: k.adjTime,
                 value: k.volume,
                 color: k.close >= k.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
             }));
 
             this.candleSeries.setData(candleData);
+            this.candleSeries._dataMap = new Map(candleData.map(d => [d.time, d.close]));
+            
             this.volumeSeries.setData(volumeData);
+            this.volumeSeries._dataMap = new Map(volumeData.map(d => [d.time, d.value]));
 
-            const lastCandle = candleData[candleData.length - 1];
-            const firstCandle = candleData[0];
-            this.updatePriceDisplay(lastCandle.close, firstCandle.close);
+            // FORCE AUTO-SCALE TO PREVENT Y-AXIS FREEZING ON OLD PRICES
+            if (this.chart) {
+                this.chart.priceScale('right').applyOptions({ autoScale: true });
+                this.chart.timeScale().fitContent();
+            }
+            if (this.volumeChart) {
+                this.volumeChart.priceScale('right').applyOptions({ autoScale: true });
+                this.volumeChart.timeScale().fitContent();
+            }
 
-            this.chart.timeScale().fitContent();
-            if (this.volumeChart) this.volumeChart.timeScale().fitContent();
+            if (candleData.length > 0) {
+                const lastCandle = candleData[candleData.length - 1];
+                const firstCandle = candleData[0];
+                this.updatePriceDisplay(lastCandle.close, firstCandle.close);
+            }
+
             this.updateStatus('live');
 
         } catch (error) {
@@ -563,6 +654,9 @@ const ChartManager = {
                 try {
                     // Remove from charts array to stop syncing
                     this.charts = this.charts.filter(c => c !== panelObj.chart);
+                    // Properly destroy the lightweight chart instance
+                    if (panelObj.chart) panelObj.chart.remove();
+                    // Remove DOM
                     if (panelObj.panel && panelObj.panel.parentNode) {
                         panelObj.panel.remove();
                     }
@@ -572,6 +666,10 @@ const ChartManager = {
 
         this.indicatorSeries = {};
         this.indicatorPanels = {};
+        if (this.chart) {
+            this.chart.legendItems = [];
+            if (this.chart.legendDiv) this.chart.legendDiv.innerHTML = '';
+        }
         this.clearMarkers();
     },
 
@@ -634,7 +732,9 @@ const ChartManager = {
                 title: `EMA${period}`
             });
             series.setData(data);
+            series._dataMap = new Map(data.map(d => [d.time, d.value]));
             this.indicatorSeries[`ema_${period}`] = series;
+            this.chart.legendItems.push({ series: series, title: `EMA${period}`, color: this.colors.ema[i] });
         });
     },
 
@@ -649,7 +749,9 @@ const ChartManager = {
             priceScaleId: 'right',
             lineStyle: LightweightCharts.LineStyle.Dashed
         });
-        upperSeries.setData(times.map((t, i) => ({ time: t, value: upper[i] })).filter(d => d.value !== null));
+        const upperData = times.map((t, i) => ({ time: t, value: upper[i] })).filter(d => d.value !== null);
+        upperSeries.setData(upperData);
+        upperSeries._dataMap = new Map(upperData.map(d => [d.time, d.value]));
         this.indicatorSeries['bb_upper'] = upperSeries;
 
         // Middle band
@@ -658,7 +760,9 @@ const ChartManager = {
             lineWidth: 1,
             priceScaleId: 'right'
         });
-        middleSeries.setData(times.map((t, i) => ({ time: t, value: middle[i] })).filter(d => d.value !== null));
+        const middleData = times.map((t, i) => ({ time: t, value: middle[i] })).filter(d => d.value !== null);
+        middleSeries.setData(middleData);
+        middleSeries._dataMap = new Map(middleData.map(d => [d.time, d.value]));
         this.indicatorSeries['bb_middle'] = middleSeries;
 
         // Lower band
@@ -668,8 +772,14 @@ const ChartManager = {
             priceScaleId: 'right',
             lineStyle: LightweightCharts.LineStyle.Dashed
         });
-        lowerSeries.setData(times.map((t, i) => ({ time: t, value: lower[i] })).filter(d => d.value !== null));
+        const lowerData = times.map((t, i) => ({ time: t, value: lower[i] })).filter(d => d.value !== null);
+        lowerSeries.setData(lowerData);
+        lowerSeries._dataMap = new Map(lowerData.map(d => [d.time, d.value]));
         this.indicatorSeries['bb_lower'] = lowerSeries;
+        
+        this.chart.legendItems.push({ series: upperSeries, title: 'BB Up', color: this.colors.bollinger.upper });
+        this.chart.legendItems.push({ series: middleSeries, title: 'BB Mid', color: this.colors.bollinger.middle });
+        this.chart.legendItems.push({ series: lowerSeries, title: 'BB Low', color: this.colors.bollinger.lower });
     },
 
     addIchimokuCloud(times) {
@@ -681,11 +791,15 @@ const ChartManager = {
 
         const tenkanLine = this.chart.addLineSeries({ color: this.colors.ichimoku.tenkan, lineWidth: 1, priceScaleId: 'right' });
         tenkanLine.setData(tenkanData);
+        tenkanLine._dataMap = new Map(tenkanData.map(d => [d.time, d.value]));
         this.indicatorSeries['ichimoku_tenkan'] = tenkanLine;
+        this.chart.legendItems.push({ series: tenkanLine, title: 'Tenkan', color: this.colors.ichimoku.tenkan });
 
         const kijunLine = this.chart.addLineSeries({ color: this.colors.ichimoku.kijun, lineWidth: 1, priceScaleId: 'right' });
         kijunLine.setData(kijunData);
+        kijunLine._dataMap = new Map(kijunData.map(d => [d.time, d.value]));
         this.indicatorSeries['ichimoku_kijun'] = kijunLine;
+        this.chart.legendItems.push({ series: kijunLine, title: 'Kijun', color: this.colors.ichimoku.kijun });
     },
 
     addVwap(times) {
@@ -699,7 +813,9 @@ const ChartManager = {
             title: 'VWAP'
         });
         series.setData(data);
+        series._dataMap = new Map(data.map(d => [d.time, d.value]));
         this.indicatorSeries['vwap'] = series;
+        this.chart.legendItems.push({ series: series, title: 'VWAP', color: this.colors.vwap });
     },
 
     // ========== SEPARATE PANEL INDICATORS ==========
@@ -722,7 +838,8 @@ const ChartManager = {
         });
 
         series.setData(data);
-        // this.indicatorSeries['rsi'] = series; // No need to track in flat map if managed by panel
+        series._dataMap = new Map(data.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: series, title: 'RSI', color: this.colors.rsi });
 
         // Add overbought/oversold lines
         this.addHorizontalLine('rsi_70', 70, 'rsi', '#ef4444', LightweightCharts.LineStyle.Dashed, chart);
@@ -747,6 +864,8 @@ const ChartManager = {
             title: 'K'
         });
         kSeries.setData(kData);
+        kSeries._dataMap = new Map(kData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: kSeries, title: 'K', color: this.colors.kdj.k });
 
         // D line
         const dSeries = chart.addLineSeries({
@@ -755,6 +874,8 @@ const ChartManager = {
             title: 'D'
         });
         dSeries.setData(dData);
+        dSeries._dataMap = new Map(dData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: dSeries, title: 'D', color: this.colors.kdj.d });
 
         // J line
         const jSeries = chart.addLineSeries({
@@ -763,6 +884,8 @@ const ChartManager = {
             title: 'J'
         });
         jSeries.setData(jData);
+        jSeries._dataMap = new Map(jData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: jSeries, title: 'J', color: this.colors.kdj.j });
 
         // Add threshold lines
         this.addHorizontalLine('kdj_buy', params.buyThreshold || 15, 'kdj', '#10b981', LightweightCharts.LineStyle.Dotted, chart);
@@ -784,6 +907,8 @@ const ChartManager = {
             title: 'MACD'
         });
         macdSeries.setData(macdData);
+        macdSeries._dataMap = new Map(macdData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: macdSeries, title: 'MACD', color: this.colors.macd.macd });
 
         // Signal Line
         const signalData = times.map((t, i) => ({ time: t, value: signalLine[i] })).filter(d => d.value !== undefined);
@@ -793,6 +918,8 @@ const ChartManager = {
             title: 'Signal'
         });
         signalSeries.setData(signalData);
+        signalSeries._dataMap = new Map(signalData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: signalSeries, title: 'Signal', color: this.colors.macd.signal });
 
         // Histogram
         const histData = times.map((t, i) => ({
@@ -804,6 +931,8 @@ const ChartManager = {
             priceScaleId: 'right' // Use main right scale of subchart
         });
         histSeries.setData(histData);
+        histSeries._dataMap = new Map(histData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: histSeries, title: 'Hist', color: '#888' });
     },
 
     addStochRsiPanel(closes, times) {
@@ -822,6 +951,8 @@ const ChartManager = {
             title: '%K'
         });
         kSeries.setData(kData);
+        kSeries._dataMap = new Map(kData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: kSeries, title: '%K', color: this.colors.stochRsi.k });
 
         const dSeries = chart.addLineSeries({
             color: this.colors.stochRsi.d,
@@ -829,6 +960,8 @@ const ChartManager = {
             title: '%D'
         });
         dSeries.setData(dData);
+        dSeries._dataMap = new Map(dData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: dSeries, title: '%D', color: this.colors.stochRsi.d });
 
         this.addHorizontalLine('stochrsi_80', 80, 'stochrsi', '#ef4444', LightweightCharts.LineStyle.Dashed, chart);
         this.addHorizontalLine('stochrsi_20', 20, 'stochrsi', '#10b981', LightweightCharts.LineStyle.Dashed, chart);
@@ -851,6 +984,8 @@ const ChartManager = {
             title: 'ADX'
         });
         adxSeries.setData(adxData);
+        adxSeries._dataMap = new Map(adxData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: adxSeries, title: 'ADX', color: this.colors.adx.adx });
 
         const plusSeries = chart.addLineSeries({
             color: this.colors.adx.plus,
@@ -858,6 +993,8 @@ const ChartManager = {
             title: '+DI'
         });
         plusSeries.setData(plusData);
+        plusSeries._dataMap = new Map(plusData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: plusSeries, title: '+DI', color: this.colors.adx.plus });
 
         const minusSeries = chart.addLineSeries({
             color: this.colors.adx.minus,
@@ -865,6 +1002,8 @@ const ChartManager = {
             title: '-DI'
         });
         minusSeries.setData(minusData);
+        minusSeries._dataMap = new Map(minusData.map(d => [d.time, d.value]));
+        chart.legendItems.push({ series: minusSeries, title: '-DI', color: this.colors.adx.minus });
 
         this.addHorizontalLine('adx_25', params.threshold || 25, 'adx', '#ffffff', LightweightCharts.LineStyle.Dotted, chart);
     },
@@ -885,25 +1024,28 @@ const ChartManager = {
 
                 if (klines && klines.length > 0) {
                     const latest = klines[klines.length - 1];
+                    const adjTime = this.getAdjustedTime(latest.time);
 
-                    this.candleSeries.update({
-                        time: this.getAdjustedTime(latest.time),
-                        open: latest.open,
-                        high: latest.high,
-                        low: latest.low,
-                        close: latest.close
-                    });
+                    if (!isNaN(adjTime) && !isNaN(latest.close)) {
+                        this.candleSeries.update({
+                            time: adjTime,
+                            open: latest.open,
+                            high: latest.high,
+                            low: latest.low,
+                            close: latest.close
+                        });
 
-                    this.volumeSeries.update({
-                        time: this.getAdjustedTime(latest.time),
-                        value: latest.volume,
-                        color: latest.close >= latest.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
-                    });
+                        this.volumeSeries.update({
+                            time: adjTime,
+                            value: latest.volume,
+                            color: latest.close >= latest.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+                        });
 
-                    this.elements.lastPrice.textContent = '$' + latest.close.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: latest.close < 1 ? 6 : 2
-                    });
+                        this.elements.lastPrice.textContent = '$' + latest.close.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: latest.close < 1 ? 6 : 2
+                        });
+                    }
                 }
             } catch (error) {
                 console.warn('Real-time update failed:', error);
