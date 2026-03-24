@@ -23,7 +23,8 @@ const StrategyAnalyzers = {
             details = `RSI at ${currentRsi.toFixed(1)} - Neutral zone`;
         }
 
-        return { strategyId: 'rsi_divergence', signal, strength: Math.min(strength, 1), value: currentRsi, details };
+        return { strategyId: 'rsi_divergence', signal, strength: Math.min(strength, 1), value: currentRsi, details,
+            useCase: 'Mean reversion on any timeframe. Best for altcoins on 1H/4H. RSI<30=oversold buy zone; >70=overbought sell zone. Combine with support levels for high-probability entries.' };
     },
 
     analyzeMacdCrossover(klines) {
@@ -51,7 +52,8 @@ const StrategyAnalyzers = {
             signal = 'sell'; strength = 0.4; details = `MACD below signal (Histogram: ${currentHist.toFixed(4)})`;
         }
 
-        return { strategyId: 'macd_crossover', signal, strength, value: currentHist, details };
+        return { strategyId: 'macd_crossover', signal, strength, value: currentHist, details,
+            useCase: 'Trend-following on 1H/4H. Crossover = momentum shift. Best in trending markets; avoid in choppy/sideways. Zero-line cross adds extra confluence.' };
     },
 
     analyzeBollingerSqueeze(klines) {
@@ -79,7 +81,8 @@ const StrategyAnalyzers = {
             details = `Price within bands (Width: ${(currentBandwidth * 100).toFixed(2)}%)`;
         }
 
-        return { strategyId: 'bollinger_squeeze', signal, strength, value: currentBandwidth, details };
+        return { strategyId: 'bollinger_squeeze', signal, strength, value: currentBandwidth, details,
+            useCase: 'Volatility breakout detection on any timeframe. Squeeze (narrow bands) = explosive move imminent. Price outside bands = valid breakout. Best for crypto that just broke consolidation.' };
     },
 
     analyzeEmaRibbon(klines) {
@@ -109,7 +112,8 @@ const StrategyAnalyzers = {
             details = 'EMAs not aligned - Choppy market';
         }
 
-        return { strategyId: 'ema_ribbon', signal, strength, value: currentEmas[0], details };
+        return { strategyId: 'ema_ribbon', signal, strength, value: currentEmas[0], details,
+            useCase: 'Trend quality filter on 4H/1D. All EMAs fanned and stacked = high-confidence trend. Use to filter other signals — only take buys when ribbon is bullish. ~63% in trending crypto.' };
     },
 
     analyzeVolumeMomentum(klines) {
@@ -138,7 +142,8 @@ const StrategyAnalyzers = {
             signal = 'sell'; strength = 0.4; details = `Negative momentum (${momentum.toFixed(2)}%) but weak volume`;
         }
 
-        return { strategyId: 'volume_momentum', signal, strength, value: momentum, details };
+        return { strategyId: 'volume_momentum', signal, strength, value: momentum, details,
+            useCase: 'Breakout confirmation. High volume + momentum = institutional moves. Best for identifying pump starts in altcoins on 15m/1H. Volume >1.5x avg = signal is trustworthy.' };
     },
 
     analyzeSupportResistance(klines) {
@@ -162,7 +167,8 @@ const StrategyAnalyzers = {
             details = `Trading between S: ${support.toFixed(4)} and R: ${resistance.toFixed(4)}`;
         }
 
-        return { strategyId: 'support_resistance', signal, strength, value: currentClose, details };
+        return { strategyId: 'support_resistance', signal, strength, value: currentClose, details,
+            useCase: 'Key price level trading on any timeframe. Breakout above resistance = strong buy. Bounce from support = buy. Works in all market conditions, extremely versatile.' };
     },
 
     analyzeMeanReversion(klines) {
@@ -188,7 +194,8 @@ const StrategyAnalyzers = {
             details = `Price within normal range (Z-score: ${zScore.toFixed(2)})`;
         }
 
-        return { strategyId: 'mean_reversion', signal, strength, value: zScore, details };
+        return { strategyId: 'mean_reversion', signal, strength, value: zScore, details,
+            useCase: 'Range trading on 1H/4H. Z-score >2 = price too far above mean, expect pullback. Best for ranging markets. Avoid using in strong trending markets — can fight the trend.' };
     },
 
     analyzeIchimoku(klines) {
@@ -217,7 +224,8 @@ const StrategyAnalyzers = {
             details = 'Price inside cloud - Wait for breakout';
         }
 
-        return { strategyId: 'ichimoku', signal, strength, value: currentClose - cloudTop, details };
+        return { strategyId: 'ichimoku', signal, strength, value: currentClose - cloudTop, details,
+            useCase: 'Complete trend system on 4H/1D. Price above cloud + bullish TK cross = strongest buy signal. Cloud = powerful dynamic support. Ideal for swing trading BTC/ETH.' };
     },
 
     analyzeStochRsi(klines) {
@@ -243,7 +251,8 @@ const StrategyAnalyzers = {
             details = `StochRSI at ${currentK.toFixed(1)} - Neutral zone`;
         }
 
-        return { strategyId: 'stoch_rsi', signal, strength, value: currentK, details };
+        return { strategyId: 'stoch_rsi', signal, strength, value: currentK, details,
+            useCase: 'Fast reversal signals on 15m/1H. More sensitive than RSI. K<20 + bullish cross = high-confidence buy. Best for short-term crypto scalping and swing entry timing.' };
     },
 
     analyzeAdxTrend(klines) {
@@ -265,7 +274,8 @@ const StrategyAnalyzers = {
         } else {
             details = `Weak trend (ADX: ${currentAdx.toFixed(1)}) - Range-bound market`;
         }
-        return { strategyId: 'adx_trend', signal, strength, value: currentAdx, details };
+        return { strategyId: 'adx_trend', signal, strength, value: currentAdx, details,
+            useCase: 'Trend strength filter on 1H/4H. ADX>25 = strong trend exists. Use as gatekeeper: only take trend-following signals when ADX is above 25. Prevents trading in choppy markets.' };
     },
 
     analyzeVwap(klines) {
@@ -284,7 +294,8 @@ const StrategyAnalyzers = {
         } else {
             signal = 'sell'; strength = 0.3; details = `Price ${Math.abs(deviation).toFixed(2)}% below VWAP - Bearish bias`;
         }
-        return { strategyId: 'vwap', signal, strength, value: deviation, details };
+        return { strategyId: 'vwap', signal, strength, value: deviation, details,
+            useCase: 'Intraday fair value on 15m/1H. Price above VWAP = institutional bullish bias. Best for intraday crypto trading. Strong breakouts above VWAP with volume = high-conviction entries.' };
     },
 
     analyzeTripleScreen(klines) {
@@ -307,7 +318,8 @@ const StrategyAnalyzers = {
         } else {
             signal = 'sell'; strength = 0.4; details = 'Long-term downtrend but waiting for rally entry';
         }
-        return { strategyId: 'triple_screen', signal, strength, value: currentRsi, details };
+        return { strategyId: 'triple_screen', signal, strength, value: currentRsi, details,
+            useCase: 'Multi-timeframe confirmation system on 1H/4H. Long-term trend filter + short-term pullback entry. ~75% win rate when all 3 screens align. Great for swing trading crypto.' };
     },
 
     analyzeKdj(klines) {
@@ -332,7 +344,8 @@ const StrategyAnalyzers = {
         } else {
             details = `K=${currentK.toFixed(1)}, D=${currentD.toFixed(1)}, J=${currentJ.toFixed(1)} - Neutral`;
         }
-        return { strategyId: 'kdj', signal, strength, value: currentK, details };
+        return { strategyId: 'kdj', signal, strength, value: currentK, details,
+            useCase: 'Powerful on 1H/4H for crypto. K<15 is the strongest buy zone — very rare and high accuracy. J<0 or >100 are extremes. Widely used in Asian crypto markets. ~80% accuracy at K<15.' };
     },
 
     analyzeConnorsRsi(klines) {
@@ -360,7 +373,8 @@ const StrategyAnalyzers = {
         } else {
             details = 'Insufficient data for SMA(200)';
         }
-        return { strategyId: 'connors_rsi', signal, strength, value: currentRsi, details };
+        return { strategyId: 'connors_rsi', signal, strength, value: currentRsi, details,
+            useCase: 'Mean reversion within uptrends on 1D. RSI(2)<10 with price above SMA(200) = buy the dip. High win rate in bull markets. Avoid in bear markets — only works when macro trend is up.' };
     },
 
     analyzeDonchianBreakout(klines) {
@@ -381,7 +395,8 @@ const StrategyAnalyzers = {
             const position = (currentClose - lowestLow) / (highestHigh - lowestLow);
             details = `Price in range (${(position * 100).toFixed(0)}% from low). High: ${highestHigh.toFixed(4)}, Low: ${lowestLow.toFixed(4)}`;
         }
-        return { strategyId: 'donchian_breakout', signal, strength, value: currentClose, details };
+        return { strategyId: 'donchian_breakout', signal, strength, value: currentClose, details,
+            useCase: 'Trend breakout system on 4H/1D. New 20-period high/low = momentum breakout. Best for catching early stages of big crypto trends. Works well for altcoin breakouts.' };
     },
 
     analyzeGoldenCross(klines) {
@@ -408,7 +423,8 @@ const StrategyAnalyzers = {
         } else {
             details = 'Insufficient data for SMA calculation';
         }
-        return { strategyId: 'golden_cross', signal, strength, value: currentFast - currentSlow, details };
+        return { strategyId: 'golden_cross', signal, strength, value: currentFast - currentSlow, details,
+            useCase: 'Long-term trend confirmation on 1D/1W. Golden Cross (SMA50 > SMA200) = macro bull signal; very reliable on daily charts. Use for position sizing decisions in crypto bull markets.' };
     },
 
     analyzeSuperTrend(klines) {
@@ -434,7 +450,8 @@ const StrategyAnalyzers = {
         } else {
             signal = 'sell'; strength = 0.4; details = 'Price below SuperTrend - Bearish trend';
         }
-        return { strategyId: 'supertrend', signal, strength, value: currentST, details };
+        return { strategyId: 'supertrend', signal, strength, value: currentST, details,
+            useCase: 'Trend-following on 1H/4H. Flip = high-probability entry. Line = dynamic stop-loss. Best on BTC/ETH in trending conditions. ~65% win rate; avoid in sideways markets.' };
     },
 
     analyzeVptBreakout(klines) {
@@ -462,7 +479,8 @@ const StrategyAnalyzers = {
         } else {
             details = 'Insufficient data for VPT calculation';
         }
-        return { strategyId: 'vpt_breakout', signal, strength, value: currentVpt, details };
+        return { strategyId: 'vpt_breakout', signal, strength, value: currentVpt, details,
+            useCase: 'Smart money detection on 1H/4H. VPT above SMA with small price gain = accumulation (insiders buying quietly). Great for finding early entries before a crypto pump.' };
     },
 
     analyzeObvDivergence(klines) {
@@ -491,7 +509,8 @@ const StrategyAnalyzers = {
         }
 
         if (signal === 'neutral') details = `OBV at ${currentObv.toFixed(0)} - No divergence detected`;
-        return { strategyId: 'obv_divergence', signal, strength, value: currentObv, details };
+        return { strategyId: 'obv_divergence', signal, strength, value: currentObv, details,
+            useCase: 'Divergence signal on 4H/1D. OBV rising while price falls = bullish divergence (smart money accumulating). One of the most reliable reversal indicators in crypto. ~65% on 4H.' };
     },
 
     analyzeFundingRate(klines) {
@@ -509,7 +528,8 @@ const StrategyAnalyzers = {
         } else {
             details = `8h price change: ${priceChange.toFixed(2)}% - Neutral funding environment`;
         }
-        return { strategyId: 'funding_rate', signal, strength, value: priceChange, details };
+        return { strategyId: 'funding_rate', signal, strength, value: priceChange, details,
+            useCase: 'Contrarian signal on crypto perpetuals. High-volume bullish move = potential short squeeze risk; high-volume dump = potential long squeeze. Best on 1H/4H for BTC/ETH perps.' };
     }
 };
 

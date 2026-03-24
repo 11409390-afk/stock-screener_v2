@@ -121,6 +121,97 @@ const Strategies = {
                 case 'funding_rate':
                     result = window.StrategyAnalyzers.analyzeFundingRate(klines);
                     break;
+
+                // ── DIY Indicators (28) ──────────────────────────────────
+                case 'diy_range_filter':
+                    result = window.DIYAnalyzers.analyzeRangeFilter(klines);
+                    break;
+                case 'diy_ssl_channel':
+                    result = window.DIYAnalyzers.analyzeSslChannel(klines);
+                    break;
+                case 'diy_cci':
+                    result = window.DIYAnalyzers.analyzeCci(klines);
+                    break;
+                case 'diy_chandelier_exit':
+                    result = window.DIYAnalyzers.analyzeChandelierExit(klines);
+                    break;
+                case 'diy_cmf':
+                    result = window.DIYAnalyzers.analyzeCmf(klines);
+                    break;
+                case 'diy_roc':
+                    result = window.DIYAnalyzers.analyzeRoc(klines);
+                    break;
+                case 'diy_volatility_osc':
+                    result = window.DIYAnalyzers.analyzeVolatilityOscillator(klines);
+                    break;
+                case 'diy_hull_suite':
+                    result = window.DIYAnalyzers.analyzeHullSuite(klines);
+                    break;
+                case 'diy_bull_bear_power':
+                    result = window.DIYAnalyzers.analyzeBullBearPower(klines);
+                    break;
+                case 'diy_bxtrender':
+                    result = window.DIYAnalyzers.analyzeBxtrender(klines);
+                    break;
+                case 'diy_wae':
+                    result = window.DIYAnalyzers.analyzeWae(klines);
+                    break;
+                case 'diy_stc':
+                    result = window.DIYAnalyzers.analyzeStc(klines);
+                    break;
+                case 'diy_vegas_tunnel':
+                    result = window.DIYAnalyzers.analyzeVegasTunnel(klines);
+                    break;
+                case 'diy_psar':
+                    result = window.DIYAnalyzers.analyzeParabolicSar(klines);
+                    break;
+                case 'diy_keltner':
+                    result = window.DIYAnalyzers.analyzeKeltnerChannel(klines);
+                    break;
+                case 'diy_squeeze_momentum':
+                    result = window.DIYAnalyzers.analyzeSqueezeMomentum(klines);
+                    break;
+                case 'diy_aroon':
+                    result = window.DIYAnalyzers.analyzeAroon(klines);
+                    break;
+                case 'diy_williams_r':
+                    result = window.DIYAnalyzers.analyzeWilliamsR(klines);
+                    break;
+                case 'diy_mfi':
+                    result = window.DIYAnalyzers.analyzeMfi(klines);
+                    break;
+                case 'diy_fisher':
+                    result = window.DIYAnalyzers.analyzeFisherTransform(klines);
+                    break;
+                case 'diy_tsi':
+                    result = window.DIYAnalyzers.analyzeTsi(klines);
+                    break;
+                case 'diy_qqe_mod':
+                    result = window.DIYAnalyzers.analyzeQqeMod(klines);
+                    break;
+                case 'diy_mcginley':
+                    result = window.DIYAnalyzers.analyzeMcginley(klines);
+                    break;
+                case 'diy_vortex':
+                    result = window.DIYAnalyzers.analyzeVortex(klines);
+                    break;
+                case 'diy_elder_impulse':
+                    result = window.DIYAnalyzers.analyzeElderImpulse(klines);
+                    break;
+                case 'diy_tema':
+                    result = window.DIYAnalyzers.analyzeTema(klines);
+                    break;
+                case 'diy_lin_reg_slope':
+                    result = window.DIYAnalyzers.analyzeLinearRegSlope(klines);
+                    break;
+                case 'diy_dpo':
+                    result = window.DIYAnalyzers.analyzeDpo(klines);
+                    break;
+            }
+
+            // For DIY indicators, normalize result to have strategyId
+            if (result && !result.strategyId && result.id) {
+                result.strategyId = 'diy_' + result.id;
             }
 
             if (result) {

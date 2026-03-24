@@ -223,6 +223,20 @@ class CryptoSelectorApp {
 
         // Load saved strategy parameters
         Strategies.loadFromStorage();
+
+        // Foldable Panels
+        document.querySelectorAll('.panel-header.foldable').forEach(header => {
+            header.addEventListener('click', (e) => {
+                // Ignore clicks on buttons inside the header
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                    return;
+                }
+                const panel = header.closest('.glass-card');
+                if (panel) {
+                    panel.classList.toggle('collapsed');
+                }
+            });
+        });
     }
 
     // Open chart modal
@@ -442,13 +456,8 @@ class CryptoSelectorApp {
             card.className = 'strategy-card';
             card.dataset.id = strategy.id;
 
-            let typeClass = '';
-            switch (strategy.type) {
-                case 'momentum': typeClass = 'momentum'; break;
-                case 'trend': typeClass = 'trend'; break;
-                case 'volatility': typeClass = 'volatility'; break;
-                default: typeClass = '';
-            }
+            // CSS class matches the type directly (momentum, trend, volatility, diy_trend, diy_momentum, etc.)
+            const typeClass = strategy.type || '';
 
             // Build parameter sliders HTML
             let paramsHtml = '';
@@ -709,6 +718,18 @@ class CryptoSelectorApp {
             this.renderSignals(results);
             this.renderScore(overall);
 
+            // ── Market Intelligence Engine (aggregates all signals) ────────
+            try {
+                // Run DIY analyzers over all 28 indicators for the Intelligence Engine
+                const allDiyResults = window.DIYAnalyzers ? window.DIYAnalyzers.analyzeAll(this.klineData) : [];
+                if (window.MarketIntelligence) {
+                    const intel = window.MarketIntelligence.analyze(results, allDiyResults, this.klineData);
+                    this.renderIntelligence(intel);
+                }
+            } catch(intelErr) {
+                console.warn('Intelligence engine error:', intelErr);
+            }
+
             this.elements.exportBtn.disabled = false;
 
             // Generate and display historical signal markers
@@ -931,37 +952,120 @@ class CryptoSelectorApp {
 
     renderSignals(results) {
         this.elements.signalsGrid.innerHTML = '';
-
         let buyCount = 0, sellCount = 0, neutralCount = 0;
-
         results.forEach(result => {
             const strategy = Strategies.definitions.find(s => s.id === result.strategyId);
-
+            const displayName = strategy?.name || result.name || result.strategyId;
             const card = document.createElement('div');
             card.className = `signal-card ${result.signal}`;
             card.innerHTML = `
                 <div class="signal-header">
-                    <span class="signal-name">${strategy?.name || result.strategyId}</span>
+                    <span class="signal-name">${displayName}</span>
                     <span class="signal-badge ${result.signal}">${result.signal.toUpperCase()}</span>
                 </div>
                 <div class="signal-details">
                     <p>${result.details}</p>
                     <p>Strength: <span class="signal-value">${(result.strength * 100).toFixed(0)}%</span></p>
+                    ${result.entryCondition ? `<p style="margin-top:5px; font-size:0.8rem; color:${result.signal==='buy'?'#86efac':result.signal==='sell'?'#fca5a5':'#a0a0b0'}; border-top:1px solid rgba(255,255,255,0.06); padding-top:5px;">▶ ${result.entryCondition}</p>` : ''}
+                    ${result.useCase ? `<p style="margin-top:5px; font-size:0.75rem; color:#7e8aae;">💡 ${result.useCase}</p>` : ''}
                 </div>
             `;
             this.elements.signalsGrid.appendChild(card);
-
             if (result.signal === 'buy') buyCount++;
             else if (result.signal === 'sell') sellCount++;
             else neutralCount++;
         });
-
-        // Update summary
         this.elements.signalSummary.innerHTML = `
             <span class="buy-count">${buyCount} Buy</span>
             <span class="sell-count">${sellCount} Sell</span>
             <span class="neutral-count">${neutralCount} Neutral</span>
         `;
+    }
+
+    renderDiySignals(results) {
+        const panel = document.getElementById('diySignalsPanel');
+        const grid  = document.getElementById('diySignalsGrid');
+        const summary = document.getElementById('diySignalSummary');
+        if (!panel || !grid) return;
+
+        if (!results || results.length === 0) {
+            grid.innerHTML = '<div class="empty-state"><span>🔬</span><p>No DIY signals available</p></div>';
+            panel.style.display = 'block';
+            return;
+        }
+
+        grid.innerHTML = '';
+        let buyCount = 0, sellCount = 0, neutralCount = 0;
+
+        results.forEach(r => {
+            if (!r) return;
+            const card = document.createElement('div');
+            card.className = `signal-card ${r.signal}`;
+            const strengthPct = Math.round((r.strength || 0) * 100);
+            card.innerHTML = `
+                <div class="signal-header">
+                    <span class="signal-name">${r.name}</span>
+                    <span class="signal-badge ${r.signal}">${r.signal.toUpperCase()}</span>
+                </div>
+                <div class="signal-details">
+                    <p>${r.details || ''}</p>
+                    <p>Strength: <span class="signal-value">${strengthPct}%</span></p>
+                    ${r.entryCondition ? `<p style="margin-top:5px; font-size:0.8rem; color:${r.signal==='buy'?'#86efac':r.signal==='sell'?'#fca5a5':'#a0a0b0'}; border-top:1px solid rgba(255,255,255,0.06); padding-top:5px;">▶ ${r.entryCondition}</p>` : ''}
+                    ${r.useCase ? `<p style="margin-top:5px; font-size:0.75rem; color:#7e8aae;">💡 ${r.useCase}</p>` : ''}
+                </div>
+            `;
+            grid.appendChild(card);
+            if (r.signal === 'buy') buyCount++;
+            else if (r.signal === 'sell') sellCount++;
+            else neutralCount++;
+        });
+
+        if (summary) summary.innerHTML = `
+            <span class="buy-count">${buyCount} Buy</span>
+            <span class="sell-count">${sellCount} Sell</span>
+            <span class="neutral-count">${neutralCount} Neutral</span>
+        `;
+        panel.style.display = 'block';
+    }
+
+    renderIntelligence(intel) {
+        const panel = document.getElementById('intelligencePanel');
+        if (!panel || !intel) return;
+
+        document.getElementById('longPct').textContent  = intel.longPct  + '%';
+        document.getElementById('shortPct').textContent = intel.shortPct + '%';
+        document.getElementById('longBar').style.width  = intel.longPct  + '%';
+        document.getElementById('shortBar').style.width = intel.shortPct + '%';
+
+        const exScore = document.getElementById('exhaustionScore');
+        const exBar   = document.getElementById('exhaustionBar');
+        const exLevel = document.getElementById('exhaustionLevel');
+        if (exScore) exScore.textContent = intel.exhaustion.score + '%';
+        if (exBar)   exBar.style.width   = intel.exhaustion.score + '%';
+        if (exLevel) exLevel.textContent = `${intel.exhaustion.level} ${intel.exhaustion.dir !== 'neutral' ? '(to the ' + intel.exhaustion.dir + ')' : ''} — from: ${intel.exhaustion.contributors.join(', ') || 'none'}`;
+
+        const stateEl = document.getElementById('intelligenceState');
+        if (stateEl) {
+            stateEl.textContent = intel.state.label;
+            stateEl.style.color = intel.state.color;
+            stateEl.style.background = intel.state.color + '22';
+        }
+
+        const actionEl  = document.getElementById('intelAction');
+        const msgEl     = document.getElementById('intelMessage');
+        const recEl     = document.getElementById('intelRecommendation');
+        if (actionEl) { actionEl.textContent = intel.recommendation.action; actionEl.style.color = intel.recommendation.color; }
+        if (msgEl)    msgEl.textContent = intel.recommendation.message;
+        if (recEl)    recEl.style.borderColor = intel.recommendation.color + '55';
+
+        const t = document.getElementById('intelTotal'), b = document.getElementById('intelBuy'),
+              s = document.getElementById('intelSell'),  n = document.getElementById('intelNeutral');
+        if (t) t.textContent = intel.total;
+        if (b) b.textContent = intel.buyVotes;
+        if (s) s.textContent = intel.sellVotes;
+        if (n) n.textContent = intel.neutralVotes;
+
+        panel.style.display = 'block';
     }
 
     renderScore(overall) {

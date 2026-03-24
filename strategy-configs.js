@@ -233,6 +233,253 @@ const StrategyConfigs = [
             minRate: { label: 'Min Rate %', min: 0.01, max: 0.1, step: 0.01, default: 0.03 },
             maxRate: { label: 'Max Rate %', min: 0.05, max: 0.5, step: 0.05, default: 0.1 }
         }
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  DIY Indicators (28 unique indicators from Pine Script collection)
+    // ═══════════════════════════════════════════════════════════════════════
+    {
+        id: 'diy_range_filter', name: 'Range Filter', type: 'diy_trend',
+        description: 'Filters noise via dynamic range. Flip UP = bullish, DOWN = bearish. ~65% win rate.',
+        params: { period: 50, multiplier: 3 },
+        paramConfig: {
+            period: { label: 'Period', min: 10, max: 100, step: 5, default: 50 },
+            multiplier: { label: 'Multiplier', min: 1, max: 5, step: 0.5, default: 3 }
+        }
+    },
+    {
+        id: 'diy_ssl_channel', name: 'SSL Channel', type: 'diy_trend',
+        description: 'Dynamic S/R channel. SSL Up > Down = bullish. Clean trend flips. ~60-65%.',
+        params: { period: 10 },
+        paramConfig: {
+            period: { label: 'Period', min: 5, max: 30, step: 1, default: 10 }
+        }
+    },
+    {
+        id: 'diy_cci', name: 'CCI', type: 'diy_momentum',
+        description: 'CCI > +100 = bullish breakout; < -100 = bearish. Best in trending markets.',
+        params: { period: 20 },
+        paramConfig: {
+            period: { label: 'Period', min: 10, max: 40, step: 1, default: 20 }
+        }
+    },
+    {
+        id: 'diy_chandelier_exit', name: 'Chandelier Exit', type: 'diy_trend',
+        description: 'ATR-based trailing stop. Flip = high-probability entry. ~65% trend-following.',
+        params: { period: 22, multiplier: 3 },
+        paramConfig: {
+            period: { label: 'ATR Period', min: 10, max: 40, step: 1, default: 22 },
+            multiplier: { label: 'Multiplier', min: 1, max: 5, step: 0.5, default: 3 }
+        }
+    },
+    {
+        id: 'diy_cmf', name: 'Chaikin Money Flow', type: 'diy_volume',
+        description: 'Volume confirmation: CMF > +0.05 = institutional buying. ~60% standalone.',
+        params: { period: 20 },
+        paramConfig: {
+            period: { label: 'Period', min: 10, max: 40, step: 1, default: 20 }
+        }
+    },
+    {
+        id: 'diy_roc', name: 'Rate of Change (ROC)', type: 'diy_momentum',
+        description: 'Zero-line cross = momentum shift. Catches early trend starts. ~58-62%.',
+        params: { period: 9 },
+        paramConfig: {
+            period: { label: 'Period', min: 5, max: 25, step: 1, default: 9 }
+        }
+    },
+    {
+        id: 'diy_volatility_osc', name: 'Volatility Oscillator', type: 'diy_volatility',
+        description: 'Detects explosive candles after consolidation. ~62-68% on breakout candles.',
+        params: { period: 100 },
+        paramConfig: {
+            period: { label: 'Period', min: 50, max: 200, step: 10, default: 100 }
+        }
+    },
+    {
+        id: 'diy_hull_suite', name: 'Hull Suite (HMA)', type: 'diy_trend',
+        description: 'Low-lag trend MA. Rising = bullish, falling = bearish. Less whipsaw. ~63%.',
+        params: { period: 9 },
+        paramConfig: {
+            period: { label: 'Period', min: 5, max: 30, step: 1, default: 9 }
+        }
+    },
+    {
+        id: 'diy_bull_bear_power', name: 'Bull Bear Power', type: 'diy_momentum',
+        description: 'Trend score based on distance from highs/lows relative to ATR. ~60%.',
+        params: { period: 50 },
+        paramConfig: {
+            period: { label: 'Period', min: 20, max: 100, step: 5, default: 50 }
+        }
+    },
+    {
+        id: 'diy_bxtrender', name: 'B-Xtrender', type: 'diy_momentum',
+        description: 'RSI-based dual timeframe agreement. Both positive = strong buy. ~62%.',
+        params: { shortPeriod: 5, longPeriod: 20 },
+        paramConfig: {
+            shortPeriod: { label: 'Short Period', min: 3, max: 10, step: 1, default: 5 },
+            longPeriod: { label: 'Long Period', min: 10, max: 40, step: 1, default: 20 }
+        }
+    },
+    {
+        id: 'diy_wae', name: 'Waddah Attar Explosion', type: 'diy_volatility',
+        description: 'MACD × BB width explosion. Avoids false signals with deadzone. ~65-70%.',
+        params: { sensitivity: 150, bbPeriod: 20 },
+        paramConfig: {
+            sensitivity: { label: 'Sensitivity', min: 50, max: 300, step: 10, default: 150 },
+            bbPeriod: { label: 'BB Period', min: 10, max: 40, step: 1, default: 20 }
+        }
+    },
+    {
+        id: 'diy_stc', name: 'Schaff Trend Cycle', type: 'diy_momentum',
+        description: 'Faster than MACD, smoother than RSI. Key levels: 25 (buy) / 75 (sell). ~65%.',
+        params: { fastLength: 23, slowLength: 50, cycleLength: 10 },
+        paramConfig: {
+            fastLength: { label: 'Fast EMA', min: 10, max: 40, step: 1, default: 23 },
+            slowLength: { label: 'Slow EMA', min: 30, max: 80, step: 5, default: 50 },
+            cycleLength: { label: 'Cycle', min: 5, max: 20, step: 1, default: 10 }
+        }
+    },
+    {
+        id: 'diy_vegas_tunnel', name: 'Vegas Tunnel (144/169)', type: 'diy_trend',
+        description: 'Fibonacci EMA tunnel. Price above = bullish, inside = no trade. ~65-70%.',
+        params: { ema12: 12, ema144: 144, ema169: 169 },
+        paramConfig: {
+            ema12: { label: 'Fast EMA', min: 8, max: 20, step: 1, default: 12 },
+            ema144: { label: 'Tunnel EMA 1', min: 100, max: 200, step: 1, default: 144 },
+            ema169: { label: 'Tunnel EMA 2', min: 130, max: 220, step: 1, default: 169 }
+        }
+    },
+    {
+        id: 'diy_psar', name: 'Parabolic SAR', type: 'diy_trend',
+        description: 'Trend-following with auto trailing stop. Flip = high-probability entry. ~65%.',
+        params: { start: 0.02, increment: 0.02, max: 0.2 },
+        paramConfig: {
+            start: { label: 'Start', min: 0.01, max: 0.05, step: 0.005, default: 0.02 },
+            increment: { label: 'Increment', min: 0.01, max: 0.05, step: 0.005, default: 0.02 },
+            max: { label: 'Max', min: 0.1, max: 0.4, step: 0.05, default: 0.2 }
+        }
+    },
+    {
+        id: 'diy_keltner', name: 'Keltner Channel', type: 'diy_volatility',
+        description: 'ATR-based channel. Breakout above upper = buy. Used with Squeeze. ~65%.',
+        params: { emaPeriod: 20, atrPeriod: 10, multiplier: 1.5 },
+        paramConfig: {
+            emaPeriod: { label: 'EMA Period', min: 10, max: 40, step: 1, default: 20 },
+            atrPeriod: { label: 'ATR Period', min: 5, max: 20, step: 1, default: 10 },
+            multiplier: { label: 'Multiplier', min: 1, max: 3, step: 0.25, default: 1.5 }
+        }
+    },
+    {
+        id: 'diy_squeeze_momentum', name: 'Squeeze Momentum', type: 'diy_volatility',
+        description: '🔥 BB inside KC = squeeze coiling. Squeeze fire = explosive breakout entry. ~64%.',
+        params: { bbLength: 20, bbMult: 2, kcLength: 20, kcMult: 1.5 },
+        paramConfig: {
+            bbLength: { label: 'BB Length', min: 10, max: 40, step: 1, default: 20 },
+            bbMult: { label: 'BB Mult', min: 1, max: 3, step: 0.25, default: 2 },
+            kcLength: { label: 'KC Length', min: 10, max: 40, step: 1, default: 20 },
+            kcMult: { label: 'KC Mult', min: 1, max: 3, step: 0.25, default: 1.5 }
+        }
+    },
+    {
+        id: 'diy_aroon', name: 'Aroon Indicator', type: 'diy_trend',
+        description: 'Measures trend freshness. Up > 70 + Down < 30 = new uptrend. ~59-61%.',
+        params: { period: 25 },
+        paramConfig: {
+            period: { label: 'Period', min: 10, max: 50, step: 1, default: 25 }
+        }
+    },
+    {
+        id: 'diy_williams_r', name: 'Williams %R', type: 'diy_reversal',
+        description: 'Fast RSI alt. %R cross -80 = buy, cross -20 = sell. ~65% on reversals.',
+        params: { period: 14 },
+        paramConfig: {
+            period: { label: 'Period', min: 5, max: 25, step: 1, default: 14 }
+        }
+    },
+    {
+        id: 'diy_mfi', name: 'Money Flow Index (MFI)', type: 'diy_volume',
+        description: 'Volume-weighted RSI. MFI < 20 = oversold buy; > 80 = overbought sell. ~62-68%.',
+        params: { period: 14 },
+        paramConfig: {
+            period: { label: 'Period', min: 7, max: 28, step: 1, default: 14 }
+        }
+    },
+    {
+        id: 'diy_fisher', name: 'Fisher Transform', type: 'diy_reversal',
+        description: 'Gaussian-normalized oscillator. Sharp spikes = reversal points. ~65%.',
+        params: { period: 10 },
+        paramConfig: {
+            period: { label: 'Period', min: 5, max: 20, step: 1, default: 10 }
+        }
+    },
+    {
+        id: 'diy_tsi', name: 'True Strength Index (TSI)', type: 'diy_momentum',
+        description: 'Double-smoothed momentum. Far less whipsaw than MACD. Signal cross = entry. ~63%.',
+        params: { longPeriod: 25, shortPeriod: 13, signalPeriod: 7 },
+        paramConfig: {
+            longPeriod: { label: 'Long', min: 15, max: 40, step: 1, default: 25 },
+            shortPeriod: { label: 'Short', min: 7, max: 20, step: 1, default: 13 },
+            signalPeriod: { label: 'Signal', min: 3, max: 15, step: 1, default: 7 }
+        }
+    },
+    {
+        id: 'diy_qqe_mod', name: 'QQE Mod', type: 'diy_momentum',
+        description: 'Smoothed RSI with dynamic bands. Zero cross = signal. ~62-65%.',
+        params: { rsiPeriod: 6, smoothFactor: 5 },
+        paramConfig: {
+            rsiPeriod: { label: 'RSI Period', min: 3, max: 14, step: 1, default: 6 },
+            smoothFactor: { label: 'Smooth Factor', min: 2, max: 10, step: 1, default: 5 }
+        }
+    },
+    {
+        id: 'diy_mcginley', name: 'McGinley Dynamic MA', type: 'diy_trend',
+        description: 'Self-adjusting MA — faster in fast markets, slower in slow ones. ~63%.',
+        params: { period: 14 },
+        paramConfig: {
+            period: { label: 'Period', min: 5, max: 30, step: 1, default: 14 }
+        }
+    },
+    {
+        id: 'diy_vortex', name: 'Vortex Indicator', type: 'diy_trend',
+        description: 'VI+ cross above VI- = new uptrend. Catches reversals early. ~60%.',
+        params: { period: 14 },
+        paramConfig: {
+            period: { label: 'Period', min: 7, max: 30, step: 1, default: 14 }
+        }
+    },
+    {
+        id: 'diy_elder_impulse', name: 'Elder Impulse System', type: 'diy_trend',
+        description: 'EMA + MACD alignment. Green = buy, Red = sell, Gray = no trade. ~65-70%.',
+        params: { emaPeriod: 13 },
+        paramConfig: {
+            emaPeriod: { label: 'EMA Period', min: 8, max: 21, step: 1, default: 13 }
+        }
+    },
+    {
+        id: 'diy_tema', name: 'TEMA Crossover', type: 'diy_trend',
+        description: 'Triple-smoothed EMA vs SMA. Catches changes 1-2 candles early. ~62%.',
+        params: { temaPeriod: 9, smaPeriod: 20 },
+        paramConfig: {
+            temaPeriod: { label: 'TEMA Period', min: 5, max: 20, step: 1, default: 9 },
+            smaPeriod: { label: 'SMA Period', min: 10, max: 50, step: 1, default: 20 }
+        }
+    },
+    {
+        id: 'diy_lin_reg_slope', name: 'Linear Regression Slope', type: 'diy_trend',
+        description: 'Quantifies trend angle. Positive + increasing = strong momentum. ~60-63%.',
+        params: { period: 14 },
+        paramConfig: {
+            period: { label: 'Period', min: 7, max: 30, step: 1, default: 14 }
+        }
+    },
+    {
+        id: 'diy_dpo', name: 'Detrended Price Osc. (DPO)', type: 'diy_reversal',
+        description: 'Removes long-term trend to isolate cycles. DPO < 0 in uptrend = buy dip. ~60%.',
+        params: { period: 20 },
+        paramConfig: {
+            period: { label: 'Period', min: 10, max: 40, step: 1, default: 20 }
+        }
     }
 ];
 

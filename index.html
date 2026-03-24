@@ -92,56 +92,61 @@
                 </div>
             </section>
 
-            <!-- Strategy Selection -->
-            <section class="strategies-panel glass-card">
-                <div class="panel-header">
-                    <h2>Trading Strategies</h2>
-                    <div class="strategy-actions">
+            <!-- 2. Trading Strategies Panel (Foldable) -->
+            <section class="strategies-panel glass-card" id="strategiesPanelConfig">
+                <div class="panel-header foldable" id="toggleStrategiesPanel">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="panel-toggle toggle-icon">▼</span>
+                        <h2>Trading Strategies</h2>
+                    </div>
+                    <div class="strategy-actions" onclick="event.stopPropagation()">
                         <button id="selectAllBtn" class="btn btn-sm">Select All</button>
                         <button id="clearAllBtn" class="btn btn-sm">Clear All</button>
                     </div>
                 </div>
-
-                <div class="strategies-grid" id="strategiesGrid">
-                    <!-- Strategy cards will be populated by JS -->
+                <div class="panel-content">
+                    <div class="strategies-grid" id="strategiesGrid">
+                        <!-- Strategy cards will be populated by JS -->
+                    </div>
                 </div>
             </section>
 
-            <!-- Analysis Controls -->
-            <section class="analysis-controls glass-card">
-                <label class="control-group" style="display: flex; align-items: center; gap: 8px; margin-right: auto; cursor: pointer;" title="Boost score when different types of indicators agree">
-                    <input type="checkbox" id="resonanceToggle" checked>
-                    <span style="font-size: 0.9rem; color: #a0a0b0;">Enable Resonance</span>
+            <!-- 3. Function buttons' Panel -->
+            <section class="analysis-controls glass-card" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                <label class="resonance-toggle-container" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 16px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); margin-right: auto;" title="Boost score when different types of indicators agree">
+                    <input type="checkbox" id="resonanceToggle" checked style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
+                    <div class="toggle-text" style="display: flex; flex-direction: column;">
+                        <span class="toggle-title" style="font-weight: 600; font-size: 0.95rem; color: #fff;">Enable Resonance</span>
+                        <span class="toggle-desc" style="font-size: 0.75rem; color: #a0a0b0;">Boost score when indicators agree</span>
+                    </div>
                 </label>
+
                 <button id="analyzeBtn" class="btn btn-analyze" disabled>
                     <span class="btn-icon">⚡</span>
                     <span class="btn-text">Analyze Selected</span>
                 </button>
-                <button id="mtfBtn" class="btn btn-analyze" style="background: #8b5cf6;" disabled>
+                <button id="mtfBtn" class="btn btn-analyze" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);" disabled>
                     <span class="btn-icon">⏱️</span>
                     <span class="btn-text">MTF Analyze</span>
                 </button>
                 <button id="viewChartBtn" class="btn btn-chart" disabled>
-                    <span class="btn-icon">📈</span>
-                    <span class="btn-text">View Chart</span>
-                </button>
-                <button id="screenAllBtn" class="btn btn-screen" disabled>
-                    <span class="btn-icon">📋</span>
-                    <span class="btn-text">Screen Top 50</span>
-                </button>
-                <button id="exportBtn" class="btn btn-export" disabled>
-                    <span class="btn-icon">💾</span>
-                    <span class="btn-text">Export Results</span>
+                    <span class="btn-icon">📈</span> View Chart
                 </button>
                 <button id="backtestBtn" class="btn btn-backtest" disabled>
-                    <span class="btn-icon">📈</span>
-                    <span class="btn-text">Backtest</span>
+                    <span class="btn-icon">⚡</span> Backtest
+                </button>
+                <button id="screenAllBtn" class="btn btn-screen" disabled>
+                    <span class="btn-icon">📋</span> Screen Top 50
+                </button>
+                <button id="exportBtn" class="btn btn-export" disabled>
+                    <span class="btn-icon">💾</span> Export Results
                 </button>
             </section>
 
-            <!-- Results Section -->
+            <!-- Results Section Wrapper -->
             <section class="results-section" id="resultsSection">
-                <!-- Market Overview -->
+                
+                <!-- 4. Market Overview Panel -->
                 <div class="market-overview glass-card" id="marketOverview">
                     <div class="panel-header">
                         <h2>Market Overview</h2>
@@ -174,53 +179,110 @@
                     </div>
                 </div>
 
-                <!-- Strategy Signals -->
+                <!-- 5. Market Intelligence Panel -->
+                <div class="glass-card" id="intelligencePanel" style="display:none; padding: 20px; margin-bottom: 24px;">
+                    <div class="panel-header" style="margin-bottom:16px;">
+                        <h2>🧠 Market Intelligence</h2>
+                        <span id="intelligenceState" style="font-size:0.85rem; font-weight:600; padding:4px 12px; border-radius:20px; background:rgba(255,255,255,0.08);">--</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="font-size:0.85rem; color:#a0a0b0;">🟢 Long Probability</span>
+                                <span id="longPct" style="font-size:1rem; font-weight:700; color:#22c55e;">--%</span>
+                            </div>
+                            <div style="height:8px; border-radius:4px; background:rgba(255,255,255,0.06); overflow:hidden;">
+                                <div id="longBar" style="height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); border-radius:4px; width:0%; transition:width 0.6s ease;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="font-size:0.85rem; color:#a0a0b0;">🔴 Short Probability</span>
+                                <span id="shortPct" style="font-size:1rem; font-weight:700; color:#ef4444;">--%</span>
+                            </div>
+                            <div style="height:8px; border-radius:4px; background:rgba(255,255,255,0.06); overflow:hidden;">
+                                <div id="shortBar" style="height:100%; background:linear-gradient(90deg,#dc2626,#ef4444); border-radius:4px; width:0%; transition:width 0.6s ease;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:16px; padding:12px 16px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:0.85rem; color:#a0a0b0;">⚡ Price Exhaustion Score</span>
+                            <span id="exhaustionScore" style="font-size:1.05rem; font-weight:700;">--%</span>
+                        </div>
+                        <div style="height:8px; border-radius:4px; background:rgba(255,255,255,0.06); overflow:hidden; margin-bottom:8px;">
+                            <div id="exhaustionBar" style="height:100%; border-radius:4px; width:0%; transition:width 0.6s ease; background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);"></div>
+                        </div>
+                        <div id="exhaustionLevel" style="font-size:0.8rem; color:#a0a0b0;">--</div>
+                    </div>
+                    <div id="intelRecommendation" style="padding:14px 18px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04);">
+                        <div style="font-size:1rem; font-weight:700; margin-bottom:6px;" id="intelAction">--</div>
+                        <div style="font-size:0.82rem; color:#a0a0b0; line-height:1.6;" id="intelMessage">Run analysis to see trade recommendation</div>
+                    </div>
+                    <div style="margin-top:12px; display:flex; gap:14px; flex-wrap:wrap; font-size:0.8rem; color:#a0a0b0;">
+                        <span>📊 Total: <b id="intelTotal" style="color:#e0e0f0;">--</b></span>
+                        <span>✅ Buy: <b id="intelBuy" style="color:#22c55e;">--</b></span>
+                        <span>❌ Sell: <b id="intelSell" style="color:#ef4444;">--</b></span>
+                        <span>⚪ Neutral: <b id="intelNeutral" style="color:#94a3b8;">--</b></span>
+                    </div>
+                </div>
+
+                <!-- 6. Strategy Signals Panel (Foldable) -->
                 <div class="signals-panel glass-card" id="signalsPanel">
-                    <div class="panel-header">
-                        <h2>Strategy Signals</h2>
+                    <div class="panel-header foldable" id="toggleSignalsPanel">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="panel-toggle toggle-icon">▼</span>
+                            <h2>Strategy Signals</h2>
+                        </div>
                         <div class="signal-summary" id="signalSummary">
                             <span class="buy-count">0 Buy</span>
                             <span class="sell-count">0 Sell</span>
                             <span class="neutral-count">0 Neutral</span>
                         </div>
                     </div>
-                    <div class="signals-grid" id="signalsGrid">
-                        <!-- Signal cards populated by JS -->
-                        <div class="empty-state">
-                            <span>📊</span>
-                            <p>Select strategies and click Analyze to see signals</p>
+                    <div class="panel-content">
+                        <div class="signals-grid" id="signalsGrid">
+                            <div class="empty-state">
+                                <span>📊</span>
+                                <p>Select strategies and click Analyze to see signals</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Overall Score -->
+                <!-- 7. Overall Score (Foldable) -->
                 <div class="score-panel glass-card" id="scorePanel">
-                    <div class="panel-header">
-                        <h2>Overall Score</h2>
-                        <button id="inlineMtfBtn" class="btn btn-sm" disabled style="background: #8b5cf6; border: none; padding: 4px 8px; color: white; cursor: pointer; border-radius: 4px;">🔄 Refresh MTF</button>
+                    <div class="panel-header foldable" id="toggleScorePanel">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="panel-toggle toggle-icon">▼</span>
+                            <h2>Overall Score</h2>
+                        </div>
+                        <button id="inlineMtfBtn" class="btn btn-sm" disabled style="background: #8b5cf6; border: none; padding: 4px 8px; color: white; cursor: pointer; border-radius: 4px;" onclick="event.stopPropagation()">🔄 Refresh MTF</button>
                     </div>
-                    <div class="score-display">
-                        <div class="score-gauge">
-                            <svg viewBox="0 0 200 100" class="gauge-svg">
-                                <path d="M 20 100 A 80 80 0 0 1 180 100" class="gauge-bg" />
-                                <path d="M 20 100 A 80 80 0 0 1 180 100" class="gauge-fill" id="gaugeFill" />
-                            </svg>
-                            <div class="score-value" id="overallScore">--</div>
-                            <div class="score-label" id="scoreLabel">No Analysis</div>
+                    <div class="panel-content">
+                        <div class="score-display">
+                            <div class="score-gauge">
+                                <svg viewBox="0 0 200 100" class="gauge-svg">
+                                    <path d="M 20 100 A 80 80 0 0 1 180 100" class="gauge-bg" />
+                                    <path d="M 20 100 A 80 80 0 0 1 180 100" class="gauge-fill" id="gaugeFill" />
+                                </svg>
+                                <div class="score-value" id="overallScore">--</div>
+                                <div class="score-label" id="scoreLabel">No Analysis</div>
+                            </div>
+                            <div id="resonanceContainer" style="text-align: center; margin-top: 15px; margin-bottom: 10px; min-height: 40px;">
+                                <div id="resonanceBadge" style="font-size: 0.85rem; font-weight: bold; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.05); display: inline-block; transition: all 0.3s ease;">Resonance: --</div>
+                                <div id="resonanceDetails" style="margin-top: 8px; font-size: 0.8rem; color: #a0a0b0; max-width: 280px; margin-left: auto; margin-right: auto; line-height: 1.5; word-wrap: break-word;"></div>
+                            </div>
+                            <div class="recommendation" id="recommendation">
+                                <span class="rec-icon">💡</span>
+                                <p>Run analysis to see recommendation</p>
+                            </div>
                         </div>
-                        <div id="resonanceContainer" style="text-align: center; margin-top: 15px; margin-bottom: 10px; min-height: 40px;">
-                            <div id="resonanceBadge" style="font-size: 0.85rem; font-weight: bold; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.05); display: inline-block; transition: all 0.3s ease;">Resonance: --</div>
-                            <div id="resonanceDetails" style="margin-top: 8px; font-size: 0.8rem; color: #a0a0b0; max-width: 280px; margin-left: auto; margin-right: auto; line-height: 1.5; word-wrap: break-word;"></div>
-                        </div>
-                        <div class="recommendation" id="recommendation">
-                            <span class="rec-icon">💡</span>
-                            <p>Run analysis to see recommendation</p>
-                        </div>
-                    </div>
-                    <div id="inlineMtfContainer" style="display: none; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                        <h3 style="font-size: 1rem; margin-bottom: 10px; text-align: center; color: #a0a0b0;">MTF Analysis</h3>
-                        <div style="overflow-x: auto;">
-                            <table class="results-table" id="inlineMtfTable" style="width: 100%; font-size: 0.8rem; text-align: center;"></table>
+                        <div id="inlineMtfContainer" style="display: none; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                            <h3 style="font-size: 1rem; margin-bottom: 10px; text-align: center; color: #a0a0b0;">MTF Analysis</h3>
+                            <div style="overflow-x: auto;">
+                                <table class="results-table" id="inlineMtfTable" style="width: 100%; font-size: 0.8rem; text-align: center;"></table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -440,14 +502,17 @@
     <!-- TradingView Lightweight Charts CDN -->
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
-    <script src="bingx-api.js?v=14"></script>
-    <script src="stock-api.js?v=14"></script>
-    <script src="indicators.js?v=14"></script>
-    <script src="strategy-configs.js?v=14"></script>
-    <script src="strategy-analyzers.js?v=14"></script>
-    <script src="strategies.js?v=14"></script>
-    <script src="chart.js?v=14"></script>
-    <script src="app.js?v=14"></script>
+    <script src="bingx-api.js?v=15"></script>
+    <script src="stock-api.js?v=15"></script>
+    <script src="indicators.js?v=15"></script>
+    <script src="diy-indicators.js?v=15"></script>
+    <script src="strategy-configs.js?v=15"></script>
+    <script src="strategy-analyzers.js?v=15"></script>
+    <script src="diy-analyzers.js?v=15"></script>
+    <script src="market-intelligence.js?v=15"></script>
+    <script src="strategies.js?v=15"></script>
+    <script src="chart.js?v=15"></script>
+    <script src="app.js?v=15"></script>
 </body>
 
 </html>
