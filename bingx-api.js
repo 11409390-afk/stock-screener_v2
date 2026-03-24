@@ -11,10 +11,10 @@ const BingXAPI = {
     // CORS Proxies for static web hosting
     CORS_PROXIES: [
         'http://localhost:8087/proxy?url=',
+        'https://corsproxy.io/?url=',
         'https://api.allorigins.win/raw?url=',
         'https://api.codetabs.com/v1/proxy?quest=',
-        'https://corsproxy.io/?',
-        'https://proxy.cors.sh/'
+        'https://thingproxy.freeboard.io/fetch/'
     ],
     currentProxyIndex: 0,
 
@@ -77,7 +77,7 @@ const BingXAPI = {
                 console.log(`Trying proxy ${proxyIndex + 1}/${this.CORS_PROXIES.length}...`);
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
 
                 const response = await fetch(proxyUrl, {
                     method: 'GET',
@@ -91,23 +91,27 @@ const BingXAPI = {
                     throw new Error(`HTTP ${response.status}`);
                 }
 
-                const data = await response.json();
-
-                if (data.code !== undefined && data.code !== 0) {
-                    throw new Error(`API Error ${data.code}: ${data.msg || 'Unknown'}`);
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    if (data.code !== undefined && data.code !== 0) {
+                        throw new Error(`API Error ${data.code}: ${data.msg || 'Unknown'}`);
+                    }
+                    this.currentProxyIndex = proxyIndex;
+                    return data;
+                } catch (e) {
+                    if (e.message.includes('API Error')) throw e;
+                    throw new Error(`Invalid JSON from proxy: ${text.substring(0, 40)}...`);
                 }
 
-                this.currentProxyIndex = proxyIndex;
-                return data;
-
             } catch (error) {
-                console.warn(`Proxy ${proxyIndex + 1} failed:`, error.message);
+                console.warn(`Proxy ${proxyIndex + 1} (${this.CORS_PROXIES[proxyIndex]}) failed:`, error.message);
                 lastError = error;
             }
         }
 
         console.error('All proxies failed:', lastError);
-        throw new Error('API request failed. Try again later.');
+        throw new Error('All CORS proxies failed. Please run server.py locally.');
     },
 
     delay(ms) {
